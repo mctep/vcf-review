@@ -1,18 +1,31 @@
-import { Box, Button, HStack, Stack, Text } from '@chakra-ui/react'
-import { FileCheck2, FlaskConical, UploadCloud } from 'lucide-react'
+import { Badge, Box, Button, HStack, Stack, Text } from '@chakra-ui/react'
+import { FileCheck2, FileJson, FlaskConical, UploadCloud } from 'lucide-react'
 import { useRef, useState, type DragEvent } from 'react'
-import { checkVcfFile, formatBytes } from '../../domain/upload/fileRules'
+import {
+  checkInputFile,
+  detectInputFormat,
+  formatBytes,
+  INPUT_FORMAT_LABEL,
+} from '../../domain/upload/fileRules'
 import type { VcfSource } from '../../domain/types'
 import { IconTile } from '../../ui/IconTile'
 
 const SAMPLE: VcfSource = { kind: 'local', fileName: 'S26-1201_nsclc-demo.vcf', sizeBytes: 1313 }
+const SAMPLE_EXPORT: VcfSource = {
+  kind: 'local',
+  fileName: 'S26-1220_lung_case-export.json',
+  sizeBytes: 412_000,
+}
 
 interface Props {
   value: VcfSource | null
   onChange: (source: VcfSource | null) => void
 }
 
-/** Drag & drop or browse for a local .vcf / .vcf.gz. The file content is never read in the prototype. */
+/**
+ * Drag & drop or browse for a local VCF or analysis platform export.
+ * The file content is never read in the prototype; the format is detected from the file name.
+ */
 export function LocalDropzone({ value, onChange }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -20,7 +33,7 @@ export function LocalDropzone({ value, onChange }: Props) {
 
   const accept = (file: File | undefined) => {
     if (!file) return
-    const check = checkVcfFile(file.name, file.size)
+    const check = checkInputFile(file.name, file.size)
     if (!check.ok) {
       setError(check.reason)
       onChange(null)
@@ -64,7 +77,7 @@ export function LocalDropzone({ value, onChange }: Props) {
             id="vcf-input"
             ref={input}
             type="file"
-            accept=".vcf,.gz"
+            accept=".vcf,.gz,.json,.xml"
             style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
             onChange={(e) => accept(e.target.files?.[0])}
           />
@@ -73,15 +86,17 @@ export function LocalDropzone({ value, onChange }: Props) {
             {value?.kind === 'local' ? (
               <>
                 <Text fontWeight="700">{value.fileName}</Text>
-                <Text fontSize="sm" color="fg.muted">
-                  {formatBytes(value.sizeBytes)} · ready to create a case
-                </Text>
+                <HStack gap="2" fontSize="sm" color="fg.muted">
+                  <FormatBadge fileName={value.fileName} />
+                  <Text>{formatBytes(value.sizeBytes)} · ready to create a case</Text>
+                </HStack>
               </>
             ) : (
               <>
-                <Text fontWeight="700">Drop a VCF here or click to browse</Text>
+                <Text fontWeight="700">Drop a file here or click to browse</Text>
                 <Text fontSize="sm" color="fg.muted">
-                  .vcf or .vcf.gz, single tumor sample, up to 2 GB
+                  VCF (.vcf, .vcf.gz) of a single tumor sample, or a case export from an analysis platform
+                  (.json, .xml)
                 </Text>
               </>
             )}
@@ -96,7 +111,10 @@ export function LocalDropzone({ value, onChange }: Props) {
       <HStack gap="3" justify="center" fontSize="sm" color="fg.muted" flexWrap="wrap">
         <Text>No file at hand?</Text>
         <Button size="xs" variant="outline" onClick={() => (setError(null), onChange(SAMPLE))}>
-          <FlaskConical /> Use sample file
+          <FlaskConical /> Use sample VCF
+        </Button>
+        <Button size="xs" variant="outline" onClick={() => (setError(null), onChange(SAMPLE_EXPORT))}>
+          <FileJson /> Use sample export
         </Button>
         <Button size="xs" variant="ghostLink" asChild>
           <a href={`${import.meta.env.BASE_URL}samples/nsclc-demo.vcf`} download>
@@ -105,5 +123,16 @@ export function LocalDropzone({ value, onChange }: Props) {
         </Button>
       </HStack>
     </Stack>
+  )
+}
+
+/** "VCF" or "Analysis platform export", detected from the file name. */
+export function FormatBadge({ fileName }: { fileName: string }) {
+  const format = detectInputFormat(fileName)
+  if (!format) return null
+  return (
+    <Badge size="sm" variant="subtle" colorPalette={format === 'vcf' ? 'aqua' : 'accent'}>
+      {INPUT_FORMAT_LABEL[format]}
+    </Badge>
   )
 }

@@ -8,6 +8,7 @@ const SOURCE: Record<MetadataOrigin, string> = {
   lims: 'from LIMS',
   user: 'entered manually',
   vcf: 'from VCF',
+  platform: 'from the analysis platform export',
 }
 
 /** Final expert approval. Locks the report and creates version 1.0. */

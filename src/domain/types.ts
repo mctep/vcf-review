@@ -6,6 +6,14 @@ export type CaseStatus = 'processing' | 'ready' | 'review' | 'signed' | 'failed'
 
 export type ConnectionType = 'nfs' | 's3'
 
+/**
+ * What the chosen file is:
+ * - `vcf` — raw variant calls; annotation, filtering and ranking run here (by the annotation provider);
+ * - `platform-export` — a case exported from a tertiary analysis platform: variants are already annotated and
+ *   ranked, and the case context (tumor type, tumor content, diagnosis) usually comes with it.
+ */
+export type InputFormat = 'vcf' | 'platform-export'
+
 export type VcfSource =
   | { kind: 'local'; fileName: string; sizeBytes: number }
   | {
@@ -29,7 +37,8 @@ export const PROCESSING_STEPS = [
 ] as const
 export type ProcessingStepId = (typeof PROCESSING_STEPS)[number]
 
-export type StepState = 'pending' | 'running' | 'done' | 'waiting' | 'failed'
+/** `skipped` — not needed for this input (annotation and ranking of a platform export were done upstream). */
+export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'waiting' | 'failed'
 
 export interface ProcessingState {
   steps: Record<ProcessingStepId, StepState>
@@ -49,7 +58,8 @@ export interface TumorType {
   tissue: string
 }
 
-export type MetadataOrigin = 'vcf' | 'lims' | 'user'
+/** `vcf` — VCF header; `platform` — analysis platform export; `lims` — test order; `user` — typed by a person. */
+export type MetadataOrigin = 'vcf' | 'platform' | 'lims' | 'user'
 
 /** Fields the AI interpretation depends on. */
 export type InterpretationField = 'tumorType' | 'tumorContent'

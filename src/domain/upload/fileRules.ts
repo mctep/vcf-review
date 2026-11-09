@@ -1,18 +1,40 @@
-import type { ConnectionType } from '../types'
+import type { ConnectionType, InputFormat } from '../types'
 
-export const ACCEPTED_EXTENSIONS = ['.vcf', '.vcf.gz'] as const
+export const VCF_EXTENSIONS = ['.vcf', '.vcf.gz'] as const
+/** Case exports from a tertiary analysis platform (JSON or XML). */
+export const EXPORT_EXTENSIONS = ['.json', '.xml'] as const
+export const ACCEPTED_EXTENSIONS = [...VCF_EXTENSIONS, ...EXPORT_EXTENSIONS] as const
 /** 2 GiB — generous upper bound for a single-sample somatic VCF. */
 export const MAX_VCF_BYTES = 2 * 1024 ** 3
 
+export const INPUT_FORMAT_LABEL: Record<InputFormat, string> = {
+  vcf: 'VCF',
+  'platform-export': 'Analysis platform export',
+}
+
 export function isVcfFileName(name: string): boolean {
   const lower = name.toLowerCase()
-  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext))
+  return VCF_EXTENSIONS.some((ext) => lower.endsWith(ext))
 }
+
+/** Input format by file name, or `null` when the file cannot be used to create a case. */
+export function detectInputFormat(name: string): InputFormat | null {
+  const lower = name.toLowerCase()
+  if (isVcfFileName(lower)) return 'vcf'
+  if (EXPORT_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'platform-export'
+  return null
+}
+
+export const isAcceptedFileName = (name: string) => detectInputFormat(name) !== null
 
 export type FileCheck = { ok: true } | { ok: false; reason: string }
 
-export function checkVcfFile(name: string, sizeBytes: number): FileCheck {
-  if (!isVcfFileName(name)) return { ok: false, reason: 'Only .vcf and .vcf.gz files are supported.' }
+export function checkInputFile(name: string, sizeBytes: number): FileCheck {
+  if (!isAcceptedFileName(name))
+    return {
+      ok: false,
+      reason: 'Choose a VCF (.vcf, .vcf.gz) or an analysis platform export (.json, .xml).',
+    }
   if (sizeBytes <= 0) return { ok: false, reason: 'The file is empty.' }
   if (sizeBytes > MAX_VCF_BYTES) return { ok: false, reason: 'The file is larger than 2 GB.' }
   return { ok: true }

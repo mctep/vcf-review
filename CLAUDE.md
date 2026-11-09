@@ -7,9 +7,17 @@
 
 Frontend-only prototype of a VCF interpretation and clinical reporting app for somatic oncology NGS.
 
-Flow: choose a VCF (local upload or NFS/S3 file browser) → the case is created immediately → background
-processing (uploading → validating → annotation → filtering & ranking → AI interpretation) → expert review of
-ranked variants → report draft with an assistant chat → sign-off.
+Flow: choose an input file (local upload or NFS/S3 file browser) → the case is created immediately → background
+processing → expert review of ranked variants → report draft with an assistant chat → sign-off.
+
+Two input formats (detected from the file name, `detectInputFormat`):
+
+- **VCF** (`.vcf`, `.vcf.gz`): uploading → validating → annotation → filtering & ranking → AI interpretation.
+  The case context (tumor type, tumor content) is fetched from the LIMS automatically or entered by hand.
+- **Analysis platform export** (`.json`, `.xml`): a case exported from a tertiary analysis platform. Uploading →
+  validating → import; annotation and ranking are `skipped` (done on the platform) and the case context comes
+  with the export (`origin: 'platform'`). No automatic LIMS lookup — the LIMS is optional. Never name a
+  concrete platform either.
 
 - Annotation, filtering and ranking are done by an **external annotation provider** (mocked). Never name a
   concrete provider or vendor in UI, code, comments or docs — use neutral wording ("annotation", "ranking").
@@ -46,15 +54,17 @@ src/
     types.ts     Case, Variant, ProcessingState, CaseMetadata, AuditEvent…
     case/        createCase(), audit helpers, sample id from file name, interpretation state
     metadata/    Required fields / blockers for interpretation, ICD-O-3 → OncoTree mapping
-    upload/      File rules: accepted extensions, size, NFS / s3:// path building
+    upload/      File rules: input formats (VCF / platform export), size, NFS / s3:// path building
     report/      buildReport(), draft summary/recommendations, plain-text export
     labels.ts    Display labels and theme palette names for domain enums
   services/      Interfaces + mock implementations. The only "backend". Wired in services/index.ts.
     storage      listConnections(), browse() for NFS/S3
-    processing   runPipeline() (upload→filtering) and runInterpretation(); `?fail=<step>` demo switch
+    processing   runPipeline() (VCF: upload→filtering; export: upload→validate→import) and runInterpretation();
+                 `?fail=<step>` demo switch
     lims         fetchOrder(sampleId) → order or null (coded diagnosis, tumor content when recorded)
     interpretation  chat() for the report assistant
-  mocks/         Synthetic data: variants, seed cases, connections/file tree, OncoTree subset, LIMS orders, canned replies
+  mocks/         Synthetic data: variants, seed cases, connections/file tree, OncoTree subset, LIMS orders,
+                 platform exports, canned replies
   store/         caseStore (cases, background jobs, review actions, audit), uiStore (drawers)
   theme/         Chakra system: tokens, semantic tokens, text/layer styles, recipes, slot recipes. See docs/THEME.md
   ui/            Small design-system components on top of the theme (GlassCard, StatusPill, Mono, CitationLink…)
@@ -76,7 +86,8 @@ Key rules:
   `<StaleInterpretationCallout>` lets the reviewer re-run it (confirmation dialog; reviewer edits are discarded,
   selection kept) or keep it. Sign-off is blocked while the draft is stale and requires an explicit confirmation
   of the interpretation context.
-- LIMS never overwrites values with `origin: 'user'`.
+- LIMS never overwrites values with `origin: 'user'` or `origin: 'platform'`; a platform import never overwrites
+  `origin: 'user'`.
 - What is visible when is decided by `domain/case/interpretation.ts`: annotated variants (gene, HGVS, VAF,
   consequence) and report selection are available as soon as filtering & ranking are done (`isAnnotated`);
   AI-derived content (classifications, descriptions, flags, analysis details) and the report stay locked until
@@ -89,7 +100,7 @@ Key rules:
 | Route | Screen |
 |---|---|
 | `#/` | Cases overview |
-| `#/new` | New case: local file or remote file browser |
+| `#/new` | New case: VCF or platform export, from a local file or the remote file browser |
 | `#/case/:id/details` | Processing banner + case metadata |
 | `#/case/:id/variants` | Ranked variant list + variant detail card (available after ranking; AI sections after interpretation) |
 | `#/case/:id/report` | Report draft, assistant chat (`?chat=1` focuses it), sign-off (locked until interpretation is done) |

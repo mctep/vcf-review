@@ -6,7 +6,7 @@ import { formatBytes } from '../../domain/upload/fileRules'
 import type { VcfSource } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { Eyebrow, GlassCard, PageTitle } from '../../ui'
-import { LocalDropzone } from './LocalDropzone'
+import { FormatBadge, LocalDropzone } from './LocalDropzone'
 import { FileBrowser } from './remote/FileBrowser'
 
 export function NewCasePage() {
@@ -27,10 +27,12 @@ export function NewCasePage() {
     <Stack gap="6" maxW="72rem">
       <Stack gap="1">
         <Eyebrow>New case</Eyebrow>
-        <PageTitle>Choose a VCF</PageTitle>
-        <Text color="fg.muted" maxW="44rem">
-          The case is created as soon as you pick a file. Annotation, filtering and ranking run in the
-          background while you fill in the case metadata.
+        <PageTitle>Choose an input file</PageTitle>
+        <Text color="fg.muted" maxW="48rem">
+          Start from a <b>VCF</b> — annotation, filtering and ranking run here — or from a <b>case export</b>{' '}
+          of the analysis platform you already use: its variants are already annotated and ranked, and tumor
+          type and tumor content usually come with it, so no LIMS connection is needed. The case is created as
+          soon as you pick a file.
         </Text>
       </Stack>
 
@@ -68,11 +70,14 @@ export function NewCasePage() {
         borderTopWidth="1px"
         borderColor="border"
       >
-        <Text fontSize="sm" color={source ? 'fg' : 'fg.subtle'} wordBreak="break-all">
-          {source
-            ? `${source.kind === 'local' ? source.fileName : source.fullPath} · ${formatBytes(source.sizeBytes)}`
-            : 'No file selected'}
-        </Text>
+        <HStack gap="2" minW="0">
+          {source && <FormatBadge fileName={source.fileName} />}
+          <Text fontSize="sm" color={source ? 'fg' : 'fg.subtle'} wordBreak="break-all">
+            {source
+              ? `${source.kind === 'local' ? source.fileName : source.fullPath} · ${formatBytes(source.sizeBytes)}`
+              : 'No file selected'}
+          </Text>
+        </HStack>
         <Button colorPalette="brand" disabled={!source} onClick={create}>
           Create case <ArrowRight />
         </Button>
@@ -83,10 +88,13 @@ export function NewCasePage() {
         <GlassCard.Eyebrow>What happens next</GlassCard.Eyebrow>
         <List.Root as="ol" gap="1" fontSize="sm" color="fg.muted" ps="4">
           <List.Item>The file is uploaded (or fetched from storage) and validated.</List.Item>
-          <List.Item>Variants are annotated, filtered and ranked.</List.Item>
           <List.Item>
-            The test order is fetched from the LIMS: tumor type is mapped from the diagnosis code and tumor
-            content comes from the pathology record.
+            <b>VCF:</b> variants are annotated, filtered and ranked, and the test order is fetched from the
+            LIMS (tumor type mapped from the diagnosis code, tumor content from the pathology record).
+          </List.Item>
+          <List.Item>
+            <b>Platform export:</b> ranked variants and the case context are imported as they are. The LIMS is
+            optional.
           </List.Item>
           <List.Item>
             AI interpretation starts as soon as <b>tumor type</b> and <b>tumor content</b> are known. Missing

@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import { auditEvent, createCase, CURRENT_USER, newId, processingProgress } from '../domain/case/factory'
+import {
+  auditEvent,
+  createCase,
+  CURRENT_USER,
+  isStepComplete,
+  newId,
+  processingProgress,
+  sourceFormat,
+} from '../domain/case/factory'
 import { STEP_LABEL } from '../domain/labels'
 import { describeInputChanges, isInterpretationStale } from '../domain/case/interpretation'
 import { buildReport } from '../domain/report/buildReport'
@@ -21,6 +29,7 @@ import { ONCOTREE } from '../mocks/oncotree'
 import { seedCases } from '../mocks/seedCases'
 import { services } from '../services'
 import type { LimsOrder } from '../services/lims'
+import type { PlatformCaseContext } from '../services/processing'
 
 type MetadataPatch = Partial<Omit<CaseMetadata, 'origin'>>
 
@@ -91,7 +100,11 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     const c = getCase(id)
     if (!c || c.status === 'failed') return
     const { steps } = c.processing
-    if (steps.filtering !== 'done' || steps.interpretation === 'running' || steps.interpretation === 'done')
+    if (
+      !isStepComplete(steps.filtering) ||
+      steps.interpretation === 'running' ||
+      steps.interpretation === 'done'
+    )
       return
     if (!canStartInterpretation(c.metadata)) {
       if (steps.interpretation !== 'waiting') setStep(id, 'interpretation', 'waiting')
@@ -134,23 +147,67 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       {
         onStep: (step, state) => setStep(id, step, state),
         onError: (step, message) => fail(id, step, message),
-        onDone: ({ variants, funnel }) => {
+        onDone: ({ variants, funnel, imported }) => {
           jobs.delete(id)
           patchCase(id, (x) => ({ ...x, variants, funnel, selected: variants.map((v) => v.id) }))
-          log(
-            id,
-            auditEvent(
-              'processing.step',
-              `Annotation, filtering & ranking completed: ${funnel.total.toLocaleString('en')} → ${funnel.reportable} reportable variants`,
-              'System',
-            ),
-          )
+          if (!imported) {
+            log(
+              id,
+              auditEvent(
+                'processing.step',
+                `Annotation, filtering & ranking completed: ${funnel.total.toLocaleString('en')} → ${funnel.reportable} reportable variants`,
+                'System',
+              ),
+            )
+          } else {
+            log(
+              id,
+              auditEvent(
+                'processing.step',
+                `Imported ${funnel.reportable} ranked variants from ${imported.platform}; annotation and ranking were done on the platform`,
+                'System',
+              ),
+            )
+            importContext(id, imported.context, imported.platform)
+          }
           maybeInterpret(id)
         },
       },
       fromStep,
     )
     jobs.set(id, cancel)
+  }
+
+  /** Applies the case context recorded on the analysis platform. Never overwrites values a person typed. */
+  const importContext = (id: string, context: PlatformCaseContext, platform: string) => {
+    const c = getCase(id)
+    if (!c) return
+    const patch = Object.fromEntries(
+      Object.entries(context).filter(
+        ([k, v]) => v !== undefined && c.metadata.origin[k as keyof MetadataPatch] !== 'user',
+      ),
+    ) as MetadataPatch
+    if (!Object.keys(patch).length) {
+      log(id, auditEvent('metadata.updated', `No case context in the ${platform} export`, 'System'))
+      return
+    }
+    // The platform already used these values for annotation and ranking, so they count as confirmed.
+    const unconfirmed = (c.metadata.unconfirmed ?? []).filter((f) => !(f in patch))
+    get().updateMetadata(
+      id,
+      { ...patch, unconfirmed },
+      'platform',
+      `Case context imported from ${platform}: ` +
+        [
+          patch.tumorType && `tumor type ${patch.tumorType.name} (${patch.tumorType.code})`,
+          patch.tumorContent !== undefined && `tumor content ${patch.tumorContent}%`,
+          patch.diagnosis && 'diagnosis',
+          patch.specimenType && 'specimen',
+          patch.panel && 'panel',
+        ]
+          .filter(Boolean)
+          .join(', '),
+    )
   }
 
   /** Marks a ready case as "in review" on the first reviewer action. */
@@ -174,7 +231,8 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       const c = createCase(source)
       set((s) => ({ cases: [c, ...s.cases] }))
       runPipeline(c.id)
-      void get().fetchLims(c.id)
+      // A platform export carries the case context itself; the LIMS stays available on demand.
+      if (sourceFormat(source) === 'vcf') void get().fetchLims(c.id)
       return c.id
     },
 
@@ -283,8 +341,11 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     applyLimsOrder(caseId, order) {
       const c = getCase(caseId)
       if (!c) return
-      const isUserValue = (k: string) => c.metadata.origin[k as keyof MetadataPatch] === 'user'
-      // LIMS never overwrites values the user typed.
+      // LIMS never overwrites values a person typed or values the analysis platform used.
+      const isUserValue = (k: string) => {
+        const o = c.metadata.origin[k as keyof MetadataPatch]
+        return o === 'user' || o === 'platform'
+      }
       const patch = Object.fromEntries(
         Object.entries(order).filter(([k, v]) => v !== undefined && !isUserValue(k)),
       ) as MetadataPatch

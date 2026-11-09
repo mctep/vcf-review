@@ -8,7 +8,9 @@ import {
   type ProcessingStepId,
   type StepState,
   type VcfSource,
+  type InputFormat,
 } from '../types'
+import { detectInputFormat } from '../upload/fileRules'
 
 export const CURRENT_USER = 'Dr. A. Weber'
 
@@ -25,8 +27,10 @@ export function stepsWith(states: Partial<Record<ProcessingStepId, StepState>> =
   >
 }
 
+export const isStepComplete = (state: StepState) => state === 'done' || state === 'skipped'
+
 export function processingProgress(steps: Record<ProcessingStepId, StepState>): number {
-  const done = PROCESSING_STEPS.filter((s) => steps[s] === 'done').length
+  const done = PROCESSING_STEPS.filter((s) => isStepComplete(steps[s])).length
   const running = PROCESSING_STEPS.some((s) => steps[s] === 'running') ? 0.5 : 0
   return Math.round(((done + running) / PROCESSING_STEPS.length) * 100)
 }
@@ -44,7 +48,11 @@ export function auditEvent(
 export function sampleIdFromFileName(fileName: string): string {
   const match = fileName.match(/S\d{2}-\d{3,5}/i)
   if (match) return match[0].toUpperCase()
-  return fileName.replace(/\.vcf(\.gz)?$/i, '').slice(0, 24)
+  return fileName.replace(/\.(vcf(\.gz)?|json|xml)$/i, '').slice(0, 24)
+}
+
+export function sourceFormat(source: VcfSource): InputFormat {
+  return detectInputFormat(source.fileName) ?? 'vcf'
 }
 
 export function sourceFileName(source: VcfSource): string {
@@ -58,12 +66,14 @@ export function sourceLocation(source: VcfSource): string {
 /** A brand-new case, created the moment a file is chosen. Processing starts right after. */
 export function createCase(source: VcfSource, now = new Date()): Case {
   const sampleId = sampleIdFromFileName(source.fileName)
+  // Header values are known up front (VCF header or export manifest).
+  const from = sourceFormat(source) === 'vcf' ? 'vcf' : 'platform'
   const metadata: CaseMetadata = {
     sampleId,
     referenceGenome: 'GRCh38',
     variantCaller: 'Mutect2 4.6',
     assay: 'somatic',
-    origin: { sampleId: 'vcf', referenceGenome: 'vcf', variantCaller: 'vcf', assay: 'user' },
+    origin: { sampleId: from, referenceGenome: from, variantCaller: from, assay: 'user' },
   }
   const processing: ProcessingState = {
     steps: stepsWith(),

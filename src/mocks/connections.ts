@@ -81,6 +81,7 @@ export const FILE_TREE: Record<string, FsEntry[]> = {
     { name: 'S26-1133_R1.fastq.gz', type: 'file', sizeBytes: 6.1 * GB, modified: '2026-10-30T22:10:00Z' },
   ],
   's3-lab:': [
+    { name: 'platform-exports', type: 'folder', modified: '2026-11-09T08:20:00Z' },
     { name: 'runs', type: 'folder', modified: '2026-11-09T07:30:00Z' },
     { name: 'reference', type: 'folder', modified: '2026-03-12T11:00:00Z' },
     { name: 'restricted-phi', type: 'folder', modified: '2026-09-01T11:00:00Z', restricted: true },
@@ -93,7 +94,7 @@ export const FILE_TREE: Record<string, FsEntry[]> = {
     { name: 'S26-1210_NSCLC.vcf.gz', type: 'file', sizeBytes: 41 * MB, modified: '2026-11-09T07:28:00Z' },
     { name: 'S26-1211_melanoma.vcf.gz', type: 'file', sizeBytes: 29 * MB, modified: '2026-11-09T07:29:00Z' },
     { name: 'S26-1210_NSCLC.cram', type: 'file', sizeBytes: 5.8 * GB, modified: '2026-11-09T07:10:00Z' },
-    { name: 'manifest.json', type: 'file', sizeBytes: 3_120, modified: '2026-11-09T07:30:00Z' },
+    { name: 'manifest.yaml', type: 'file', sizeBytes: 3_120, modified: '2026-11-09T07:30:00Z' },
   ],
   's3-lab:runs/2026-11-07': [
     {
@@ -102,6 +103,27 @@ export const FILE_TREE: Record<string, FsEntry[]> = {
       sizeBytes: 36 * MB,
       modified: '2026-11-07T18:40:00Z',
     },
+  ],
+  's3-lab:platform-exports': [
+    {
+      name: 'S26-1220_lung_case-export.json',
+      type: 'file',
+      sizeBytes: 412_000,
+      modified: '2026-11-09T08:14:00Z',
+    },
+    {
+      name: 'S26-1221_melanoma_case-export.json',
+      type: 'file',
+      sizeBytes: 388_000,
+      modified: '2026-11-09T08:20:00Z',
+    },
+    {
+      name: 'S26-1222_colon_case-export.xml',
+      type: 'file',
+      sizeBytes: 905_000,
+      modified: '2026-11-08T16:02:00Z',
+    },
+    { name: 'export-log.txt', type: 'file', sizeBytes: 12_400, modified: '2026-11-09T08:20:00Z' },
   ],
   's3-lab:reference': [
     { name: 'GRCh38.fa.gz', type: 'file', sizeBytes: 0.9 * GB, modified: '2026-03-12T11:00:00Z' },
