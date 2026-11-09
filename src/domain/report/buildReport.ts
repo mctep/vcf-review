@@ -139,7 +139,6 @@ const fmtDate = (iso?: string) => {
 /** Header blocks in the order clinical NGS reports usually list them. */
 export function reportHeader(c: Case): ReportHeaderBlock[] {
   const m = c.metadata
-  const code = m.diagnosisCode
   return [
     {
       title: 'Patient',
@@ -162,7 +161,6 @@ export function reportHeader(c: Case): ReportHeaderBlock[] {
       title: 'Clinical',
       fields: [
         { label: 'Diagnosis', value: m.diagnosis },
-        { label: 'ICD-O-3', value: code && `${code.morphology} · ${code.topography}` },
         { label: 'Tumor type', value: m.tumorType && `${m.tumorType.name} (${m.tumorType.code})` },
         { label: 'Requested by', value: m.orderingPhysician },
       ],
