@@ -1,4 +1,4 @@
-import { Box, createSlotRecipeContext, HStack, Spinner, Text, type HTMLChakraProps } from '@chakra-ui/react'
+import { Box, createSlotRecipeContext, HStack, Text, type HTMLChakraProps } from '@chakra-ui/react'
 import {
   ClipboardList,
   FilePlus2,
@@ -37,14 +37,12 @@ function Item({
   icon,
   children,
   end,
-  busy,
   attention,
 }: {
   to: string
   icon: ReactNode
   children: ReactNode
   end?: boolean
-  busy?: boolean
   /** Orange dot: something on this page waits for the user. */
   attention?: boolean
 }) {
@@ -56,7 +54,6 @@ function Item({
         <Text as="span" flex="1">
           {children}
         </Text>
-        {busy && <Spinner size="xs" color="aqua.fg" borderWidth="1.5px" />}
         {attention && (
           <Box boxSize="2" borderRadius="full" bg="orange.solid" aria-label="Needs input" role="img" />
         )}
@@ -72,7 +69,6 @@ export function Sidebar() {
   const openAudit = useUiStore((s) => s.setAuditOpen)
   const { colorMode, toggleColorMode } = useColorMode()
   const status = current && displayStatus(current)
-  const busy = status === 'processing'
 
   return (
     <Nav.Root aria-label="Main">
@@ -103,10 +99,10 @@ export function Sidebar() {
           >
             Details
           </Item>
-          <Item to={`/case/${current.id}/variants`} icon={<Microscope />} busy={busy}>
+          <Item to={`/case/${current.id}/variants`} icon={<Microscope />}>
             Variants
           </Item>
-          <Item to={`/case/${current.id}/report`} icon={<FileText />} busy={busy}>
+          <Item to={`/case/${current.id}/report`} icon={<FileText />}>
             Report
           </Item>
           <Nav.Item asChild>
