@@ -238,6 +238,7 @@ Consumed with `createSlotRecipeContext({ key })` → `withProvider` / `withConte
 | `classificationRow` | root, header, label, value, info, trigger, content | Used with Chakra `Collapsible`; the chevron rotates on `data-state=open` |
 | `glassCard` | root, accentBar, eyebrow, title, body | Variant `size`: `sm` · `md` · `lg`. Component: `GlassCard.*` in `src/ui` |
 | `fileBrowser` | root, connections, connection, main, toolbar, list, row, selectedBar | Rows use `aria-selected` / `aria-disabled`; connections use `aria-pressed` |
+| `tooltip` (extends Chakra's) | content, arrow, arrowTip | Larger hint text: `sm`, line height 1.5, `px 3 / py 2`, max width 20rem. Don't override `fontSize` per tooltip |
 
 ```tsx
 <GlassCard.Root size="sm">

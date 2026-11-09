@@ -6,7 +6,7 @@ import { Tooltip } from '../components/ui/tooltip'
 /** Small ⓘ icon with an explanatory tooltip. */
 export function InfoTip({ content, label = 'More information' }: { content: ReactNode; label?: string }) {
   return (
-    <Tooltip content={content} showArrow openDelay={150} contentProps={{ maxW: '20rem', fontSize: 'xs' }}>
+    <Tooltip content={content} showArrow openDelay={150}>
       <chakra.button
         type="button"
         aria-label={label}
