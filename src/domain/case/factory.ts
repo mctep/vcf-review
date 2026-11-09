@@ -31,6 +31,37 @@ export function processingProgress(steps: Record<ProcessingStepId, StepState>): 
   return Math.round(((done + running) / PROCESSING_STEPS.length) * 100)
 }
 
+// ── Processing clock ─────────────────────────────────────────────────
+// The banner shows active processing time: it stops while a step has failed or interpretation waits for
+// input, and continues (without the paused time) on retry or once the input arrives.
+
+const ms = (iso: string) => new Date(iso).getTime()
+
+/** Stops the clock (idempotent). */
+export function pauseClock(p: ProcessingState, at = new Date()): ProcessingState {
+  return p.pausedAt || p.finishedAt ? p : { ...p, pausedAt: at.toISOString() }
+}
+
+/** Restarts a paused or finished clock; the gap is not counted as processing time. */
+export function resumeClock(p: ProcessingState, at = new Date()): ProcessingState {
+  const stoppedAt = p.pausedAt ?? p.finishedAt
+  if (!stoppedAt) return p
+  return {
+    ...p,
+    pausedAt: undefined,
+    finishedAt: undefined,
+    pausedMs: (p.pausedMs ?? 0) + Math.max(0, at.getTime() - ms(stoppedAt)),
+  }
+}
+
+export const isClockRunning = (p: ProcessingState) => !p.pausedAt && !p.finishedAt
+
+/** Active processing time in milliseconds. */
+export function elapsedMs(p: ProcessingState, now = Date.now()): number {
+  const end = p.pausedAt ? ms(p.pausedAt) : p.finishedAt ? ms(p.finishedAt) : now
+  return Math.max(0, end - ms(p.startedAt) - (p.pausedMs ?? 0))
+}
+
 export function auditEvent(
   kind: AuditKind,
   message: string,

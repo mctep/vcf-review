@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import { auditEvent, createCase, CURRENT_USER, newId, processingProgress } from '../domain/case/factory'
+import {
+  auditEvent,
+  createCase,
+  CURRENT_USER,
+  newId,
+  pauseClock,
+  processingProgress,
+  resumeClock,
+} from '../domain/case/factory'
 import { STEP_LABEL } from '../domain/labels'
 import { describeInputChanges, isInterpretationStale } from '../domain/case/interpretation'
 import { buildReport } from '../domain/report/buildReport'
@@ -80,7 +88,7 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     patchCase(id, (c) => ({
       ...c,
       status: 'failed',
-      processing: { ...c.processing, error: { step, message } },
+      processing: { ...pauseClock(c.processing), error: { step, message } },
     }))
     log(id, auditEvent('processing.failed', `${STEP_LABEL[step]} failed: ${message}`, 'System'))
   }
@@ -93,9 +101,13 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     if (steps.filtering !== 'done' || steps.interpretation === 'running' || steps.interpretation === 'done')
       return
     if (!canStartInterpretation(c.metadata)) {
-      if (steps.interpretation !== 'waiting') setStep(id, 'interpretation', 'waiting')
+      if (steps.interpretation !== 'waiting') {
+        setStep(id, 'interpretation', 'waiting')
+        patchCase(id, (x) => ({ ...x, processing: pauseClock(x.processing) }))
+      }
       return
     }
+    if (c.processing.pausedAt) patchCase(id, (x) => ({ ...x, processing: resumeClock(x.processing) }))
     // The draft is valid for the inputs it started with; later changes make it stale.
     const context = { tumorType: c.metadata.tumorType, tumorContent: c.metadata.tumorContent }
     const cancel = services.processing.runInterpretation(id, {
@@ -188,7 +200,12 @@ export const useCaseStore = create<CaseStore>((set, get) => {
         return {
           ...x,
           status: 'processing',
-          processing: { ...x.processing, steps, error: undefined, progress: processingProgress(steps) },
+          processing: {
+            ...resumeClock(x.processing),
+            steps,
+            error: undefined,
+            progress: processingProgress(steps),
+          },
         }
       })
       log(caseId, auditEvent('processing.retry', `Retried from step "${STEP_LABEL[step]}"`))
@@ -235,7 +252,7 @@ export const useCaseStore = create<CaseStore>((set, get) => {
           status: 'processing',
           edits: {},
           report: { ...x.report, overrides: {}, highlighted: undefined },
-          processing: { ...x.processing, steps, progress: processingProgress(steps), finishedAt: undefined },
+          processing: { ...resumeClock(x.processing), steps, progress: processingProgress(steps) },
         }
       })
       log(

@@ -25,10 +25,13 @@ describe('caseStore background processing', () => {
 
     useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUAD') })
     expect(get(id).processing.steps.interpretation).toBe('waiting')
+    expect(get(id).processing.pausedAt).toBeDefined()
 
     useCaseStore.getState().updateMetadata(id, { tumorContent: 60 })
     await settle()
     expect(get(id).processing.steps.interpretation).toBe('done')
+    expect(get(id).processing.pausedAt).toBeUndefined()
+    expect(get(id).processing.finishedAt).toBeDefined()
     expect(get(id).status).toBe('ready')
   })
 

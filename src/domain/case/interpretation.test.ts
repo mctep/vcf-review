@@ -1,7 +1,7 @@
 import { seedCases } from '../../mocks/seedCases'
 import { VARIANT_SETS } from '../../mocks/variants'
 import type { Case } from '../types'
-import { createCase, stepsWith } from './factory'
+import { createCase, elapsedMs, isClockRunning, pauseClock, resumeClock, stepsWith } from './factory'
 import {
   describeInputChanges,
   displayStatus,
@@ -98,5 +98,26 @@ describe('displayStatus', () => {
     expect(displayStatus({ ...annotated('running'), status: 'processing' })).toBe('processing')
     expect(displayStatus(fresh())).toBe('processing')
     expect(displayStatus({ ...annotated('waiting'), status: 'failed' })).toBe('failed')
+  })
+})
+
+describe('processing clock', () => {
+  const t0 = new Date('2026-11-10T10:00:00Z')
+  const at = (s: number) => new Date(t0.getTime() + s * 1000)
+  const base = { steps: stepsWith(), progress: 0, startedAt: t0.toISOString() }
+
+  it('stops while paused and does not count the pause after resuming', () => {
+    const paused = pauseClock(base, at(30))
+    expect(isClockRunning(paused)).toBe(false)
+    expect(elapsedMs(paused, at(500).getTime())).toBe(30_000)
+    const resumed = resumeClock(paused, at(130))
+    expect(isClockRunning(resumed)).toBe(true)
+    expect(elapsedMs(resumed, at(140).getTime())).toBe(40_000)
+  })
+
+  it('continues a finished clock without the idle gap (re-run)', () => {
+    const done = { ...base, finishedAt: at(60).toISOString() }
+    expect(pauseClock(done, at(70))).toBe(done)
+    expect(elapsedMs(resumeClock(done, at(600)), at(610).getTime())).toBe(70_000)
   })
 })

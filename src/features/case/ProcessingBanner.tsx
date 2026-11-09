@@ -8,7 +8,8 @@ import {
   REQUIRED_FIELD_LABELS,
   waitingMessage,
 } from '../../domain/metadata/requiredFields'
-import { PROCESSING_STEPS, type Case, type StepState } from '../../domain/types'
+import { elapsedMs, isClockRunning } from '../../domain/case/factory'
+import { PROCESSING_STEPS, type Case, type ProcessingState, type StepState } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { Eyebrow } from '../../ui'
 import { FOCUS_PARAM, focusRequiredField } from './anchors'
@@ -29,15 +30,16 @@ const STEP_PALETTE: Record<StepState, string> = {
   failed: 'red',
 }
 
-function useElapsed(startedAt: string, finishedAt?: string) {
+/** Active processing time, ticking only while the clock runs (stops on failure or when input is needed). */
+function useElapsed(p: ProcessingState) {
+  const running = isClockRunning(p)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    if (finishedAt) return
+    if (!running) return
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
-  }, [finishedAt])
-  const end = finishedAt ? new Date(finishedAt).getTime() : now
-  const s = Math.max(0, Math.round((end - new Date(startedAt).getTime()) / 1000))
+  }, [running])
+  const s = Math.round(elapsedMs(p, now) / 1000)
   return s < 3600 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(s / 3600)} h`
 }
 
@@ -49,8 +51,8 @@ export function ProcessingBanner({ c }: { c: Case }) {
   const navigate = useNavigate()
   const onDetails = useLocation().pathname.endsWith('/details')
   const retry = useCaseStore((s) => s.retry)
-  const { steps, progress, error, startedAt, finishedAt } = c.processing
-  const elapsed = useElapsed(startedAt, finishedAt)
+  const { steps, progress, error } = c.processing
+  const elapsed = useElapsed(c.processing)
   const waiting = steps.interpretation === 'waiting'
   const missing = missingRequiredFields(c.metadata)
   const failed = c.status === 'failed'

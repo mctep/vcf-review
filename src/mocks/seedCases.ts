@@ -197,6 +197,7 @@ export function seedCases(): Case[] {
       steps: stepsWith({ uploading: 'done', validating: 'failed' }),
       progress: 20,
       startedAt: iso(60 * 3),
+      pausedAt: iso(60 * 3 - 1),
       error: {
         step: 'validating',
         message: 'FORMAT/AD is missing for 1,204 records — allele depths are required to compute VAF.',

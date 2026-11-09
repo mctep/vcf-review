@@ -43,6 +43,10 @@ export interface ProcessingState {
   progress: number
   startedAt: string
   finishedAt?: string
+  /** Set while the clock is stopped: a step failed or interpretation waits for input. */
+  pausedAt?: string
+  /** Total time spent paused, excluded from the elapsed processing time. */
+  pausedMs?: number
   error?: { step: ProcessingStepId; message: string }
 }
 
