@@ -190,7 +190,8 @@ Base: weight 600, radius `l2`. Added variants:
 | Variant | Look | When |
 |---|---|---|
 | `solid` (built-in) + `colorPalette="brand"` | Violet filled | Primary action ("Create case", "View analysis details") |
-| `outline` (built-in) | Bordered | Secondary action ("Copy output", "Fetch from LIMS") |
+| `outline` (overridden) | Bordered; in dark mode adds a tinted fill and a lighter border so it stands out on night panels | Secondary action ("Copy output", "Fetch from LIMS") |
+| `subtle` (overridden) | Tinted fill; in dark mode uses a translucent `solid` instead of the near-black `subtle` step | Low-emphasis action |
 | `accent` | Magenta filled | Rare marketing-style CTA |
 | `ghostLink` | Brand text + icon, no box | Inline actions ("Leave feedback", "Edit") |
 
