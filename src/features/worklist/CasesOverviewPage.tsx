@@ -1,8 +1,7 @@
-import { Badge, Box, Button, Flex, HStack, Progress, SimpleGrid, Stack, Table, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, HStack, Progress, SimpleGrid, Stack, Table, Text } from '@chakra-ui/react'
 import { Activity, ClipboardCheck, FilePlus2, Hourglass, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { FLAG_LABEL } from '../../domain/labels'
 import type { Case } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { displayStatus } from '../../domain/case/interpretation'
@@ -118,12 +117,10 @@ export function CasesOverviewPage() {
               <Table.ColumnHeader>Tumor type</Table.ColumnHeader>
               <Table.ColumnHeader textAlign="end">Variants</Table.ColumnHeader>
               <Table.ColumnHeader>Status</Table.ColumnHeader>
-              <Table.ColumnHeader>Flags</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {cases.map((c) => {
-              const flags = [...new Set(c.variants.flatMap((v) => v.flags))]
               return (
                 <Table.Row
                   key={c.id}
@@ -180,20 +177,6 @@ export function CasesOverviewPage() {
                         </Progress.Root>
                       )}
                     </Stack>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <HStack gap="1" flexWrap="wrap">
-                      {flags.map((f) => (
-                        <Badge
-                          key={f}
-                          size="sm"
-                          variant="outline"
-                          colorPalette={f === 'possible-germline' ? 'accent' : 'ink'}
-                        >
-                          {FLAG_LABEL[f]}
-                        </Badge>
-                      ))}
-                    </HStack>
                   </Table.Cell>
                 </Table.Row>
               )
