@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { toaster } from '../../components/ui/toaster'
 import { interpretationState, isInterpretationStale } from '../../domain/case/interpretation'
-import { buildReport, reportToPlainText } from '../../domain/report/buildReport'
+import { buildReport, reportToPlainText, signOffBlockReason } from '../../domain/report/buildReport'
 import { useCaseStore } from '../../store/caseStore'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
@@ -35,11 +35,10 @@ export function ReportPage() {
   }
 
   const signBlock =
-    c.selected.length === 0
-      ? 'Select at least one variant to include'
-      : isInterpretationStale(c)
-        ? 'Interpretation inputs changed — re-run the interpretation or keep the current draft first'
-        : undefined
+    signOffBlockReason(c) ??
+    (isInterpretationStale(c)
+      ? 'Interpretation inputs changed — re-run the interpretation or keep the current draft first'
+      : undefined)
 
   return (
     <>

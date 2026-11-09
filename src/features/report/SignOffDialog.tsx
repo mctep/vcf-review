@@ -45,6 +45,11 @@ export function SignOffDialog({
             </Dialog.Header>
             <Dialog.Body>
               <Stack gap="4" fontSize="sm">
+                <Text>
+                  Patient <b>{m.patientId}</b>
+                  {m.birthYear ? ` (born ${m.birthYear})` : ''} · sample <b>{m.sampleId}</b>
+                  {m.collectionDate ? ` collected ${m.collectionDate}` : ''}
+                </Text>
                 <Text color="fg.muted">
                   Signing creates version 1.0, locks variant selection and text, and records the signature in
                   the audit log.

@@ -1,6 +1,6 @@
 import { Badge, Box, Grid, HStack, Stack, Table, Text } from '@chakra-ui/react'
 import { useEffect } from 'react'
-import type { ReportModel, ReportRow } from '../../domain/report/buildReport'
+import type { ReportHeaderBlock, ReportModel, ReportRow } from '../../domain/report/buildReport'
 import type { ReportSectionId } from '../../domain/types'
 import { Mono, SectionTitle } from '../../ui'
 
@@ -48,6 +48,40 @@ function VariantTable({ rows, empty }: { rows: ReportRow[]; empty: string }) {
         </Table.Body>
       </Table.Root>
     </Box>
+  )
+}
+
+/** Patient / Specimen / Clinical / Test blocks at the top of the report. */
+function ReportHeader({ blocks }: { blocks: ReportHeaderBlock[] }) {
+  return (
+    <Grid
+      templateColumns={{ base: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }}
+      gap={{ base: '4', lg: '6' }}
+      mb="6"
+      pb="6"
+      borderBottomWidth="1px"
+      borderColor="border"
+      fontSize="sm"
+      data-section-title="Report header"
+    >
+      {blocks.map((b) => (
+        <Stack key={b.title} gap="2" minW="0">
+          <Text textStyle="eyebrow" color="fg.subtle">
+            {b.title}
+          </Text>
+          {b.fields.map((f) => (
+            <Box key={f.label}>
+              <Text fontSize="xs" color="fg.subtle">
+                {f.label}
+              </Text>
+              <Text fontWeight="500" color={f.value ? 'fg' : 'fg.subtle'} wordBreak="break-word">
+                {f.value ?? '—'}
+              </Text>
+            </Box>
+          ))}
+        </Stack>
+      ))}
+    </Grid>
   )
 }
 
@@ -130,23 +164,7 @@ export function ReportDocument({
         </Badge>
       </HStack>
 
-      <Grid templateColumns={{ base: '1fr 1fr', md: 'repeat(4, 1fr)' }} gap="4" mb="6" fontSize="sm">
-        {[
-          ['Sample', r.sampleId],
-          ['Tumor content', r.tumorContent ? `${r.tumorContent}%` : '—'],
-          ['Specimen', r.specimen ?? '—'],
-          ['Panel', r.panel ?? '—'],
-          ['Reference', r.referenceGenome],
-          ['Requested by', r.physician ?? '—'],
-        ].map(([k, v]) => (
-          <Box key={k}>
-            <Text fontSize="xs" color="fg.subtle">
-              {k}
-            </Text>
-            <Text fontWeight="500">{v}</Text>
-          </Box>
-        ))}
-      </Grid>
+      <ReportHeader blocks={r.header} />
 
       <Stack gap="5">
         <Section id="summary" title="Summary" highlighted={highlighted}>

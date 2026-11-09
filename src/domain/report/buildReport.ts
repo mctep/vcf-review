@@ -13,15 +13,23 @@ export interface ReportRow {
   therapies: string
 }
 
+export interface ReportField {
+  label: string
+  /** `undefined` when not recorded — rendered as an em dash. */
+  value?: string
+}
+
+/** A block of the report header: who the patient is, which specimen, clinical context, which test. */
+export interface ReportHeaderBlock {
+  title: 'Patient' | 'Specimen' | 'Clinical' | 'Test'
+  fields: ReportField[]
+}
+
 export interface ReportModel {
   caseId: string
   sampleId: string
   tumorType: string
-  tumorContent?: number
-  specimen?: string
-  physician?: string
-  panel?: string
-  referenceGenome: string
+  header: ReportHeaderBlock[]
   significant: ReportRow[]
   uncertain: ReportRow[]
   sections: Record<ReportSectionId, string>
@@ -118,6 +126,66 @@ export const DEFAULT_METHODS =
   'and the ClinGen/CGC/VICC oncogenicity framework. Variants below 5% allele fraction or 100x coverage are not ' +
   'reported. This report is a prototype output based on synthetic data and must not be used for clinical decisions.'
 
+const SEX_LABEL = { female: 'Female', male: 'Male', unknown: 'Unknown' } as const
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** `2026-10-29` → `29 Oct 2026`, independent of the viewer's time zone. */
+const fmtDate = (iso?: string) => {
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m ? `${m[3]} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : iso
+}
+
+/** Header blocks in the order clinical NGS reports usually list them. */
+export function reportHeader(c: Case): ReportHeaderBlock[] {
+  const m = c.metadata
+  const code = m.diagnosisCode
+  return [
+    {
+      title: 'Patient',
+      fields: [
+        { label: 'Patient ID', value: m.patientId },
+        { label: 'Sex', value: m.sex && SEX_LABEL[m.sex] },
+        { label: 'Year of birth', value: m.birthYear?.toString() },
+      ],
+    },
+    {
+      title: 'Specimen',
+      fields: [
+        { label: 'Sample ID', value: m.sampleId },
+        { label: 'Specimen', value: m.specimenType },
+        { label: 'Collected', value: fmtDate(m.collectionDate) },
+        { label: 'Tumor content', value: m.tumorContent !== undefined ? `${m.tumorContent}%` : undefined },
+      ],
+    },
+    {
+      title: 'Clinical',
+      fields: [
+        { label: 'Diagnosis', value: m.diagnosis },
+        { label: 'ICD-O-3', value: code && `${code.morphology} · ${code.topography}` },
+        { label: 'Tumor type', value: m.tumorType && `${m.tumorType.name} (${m.tumorType.code})` },
+        { label: 'Requested by', value: m.orderingPhysician },
+      ],
+    },
+    {
+      title: 'Test',
+      fields: [
+        { label: 'Panel', value: m.panel },
+        { label: 'Assay', value: m.assay === 'somatic' ? 'Somatic (tumor only)' : 'Germline' },
+        { label: 'Reference', value: m.referenceGenome },
+      ],
+    },
+  ]
+}
+
+/** Why the report cannot be signed yet, or `undefined`. Interpretation state is checked separately. */
+export function signOffBlockReason(c: Case): string | undefined {
+  if (!c.metadata.patientId)
+    return 'Enter the patient ID on the Details tab — a report must identify the patient'
+  if (c.selected.length === 0) return 'Select at least one variant to include'
+  return undefined
+}
+
 export function buildReport(c: Case): ReportModel {
   const selected = c.variants
     .filter((v) => c.selected.includes(v.id))
@@ -134,11 +202,7 @@ export function buildReport(c: Case): ReportModel {
     caseId: c.id,
     sampleId: c.metadata.sampleId,
     tumorType,
-    tumorContent: c.metadata.tumorContent,
-    specimen: c.metadata.specimenType,
-    physician: c.metadata.orderingPhysician,
-    panel: c.metadata.panel,
-    referenceGenome: c.metadata.referenceGenome,
+    header: reportHeader(c),
     significant: selected.filter((v) => v.tier === 'I' || v.tier === 'II').map(toRow),
     uncertain: selected.filter((v) => v.tier === 'III').map(toRow),
     sections,
@@ -159,9 +223,12 @@ export function reportToPlainText(r: ReportModel): string {
   return [
     `MOLECULAR PATHOLOGY REPORT — ${r.status === 'signed' ? `v${r.version} (signed)` : 'DRAFT'}`,
     `Case: ${r.caseId}`,
-    `Sample: ${r.sampleId} · ${r.tumorType}${r.tumorContent ? ` · tumor content ${r.tumorContent}%` : ''}`,
-    `Reference: ${r.referenceGenome}${r.panel ? ` · Panel: ${r.panel}` : ''}`,
     '',
+    ...r.header.flatMap((b) => [
+      b.title.toUpperCase(),
+      ...b.fields.map((f) => `${f.label}: ${f.value ?? '—'}`),
+      '',
+    ]),
     'SUMMARY',
     r.sections.summary,
     '',

@@ -271,6 +271,49 @@ export function CaseDetailsPage() {
           >
             <SimpleGrid columns={{ base: 1, md: 2 }} gap="4">
               {text('patientId', 'Patient ID (pseudonymised)')}
+              <SimpleGrid columns={2} gap="4">
+                <Field.Root disabled={locked}>
+                  <Field.Label w="full">
+                    Sex
+                    <OriginBadge origin={m.origin.sex} />
+                  </Field.Label>
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      value={m.sex ?? ''}
+                      onChange={(e) => {
+                        const sex = (e.target.value || undefined) as CaseMetadata['sex']
+                        update(c.id, { sex }, 'user', `Sex set to ${sex ?? '—'}`)
+                      }}
+                    >
+                      <option value="">Not recorded</option>
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                      <option value="unknown">Unknown</option>
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                </Field.Root>
+                <Field.Root disabled={locked}>
+                  <Field.Label w="full">
+                    Year of birth
+                    <OriginBadge origin={m.origin.birthYear} />
+                  </Field.Label>
+                  <Input
+                    key={`by:${m.birthYear ?? ''}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={1900}
+                    max={new Date().getFullYear()}
+                    placeholder="e.g. 1961"
+                    defaultValue={m.birthYear ?? ''}
+                    onBlur={(e) => {
+                      const v = e.target.value === '' ? undefined : Number(e.target.value)
+                      if (v === m.birthYear) return
+                      update(c.id, { birthYear: v }, 'user', `Year of birth set to ${v ?? '—'}`)
+                    }}
+                  />
+                </Field.Root>
+              </SimpleGrid>
               {text('orderingPhysician', 'Ordering physician')}
               {text('specimenType', 'Specimen')}
               {text('collectionDate', 'Collection date', { type: 'date' })}

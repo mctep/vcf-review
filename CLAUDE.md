@@ -85,6 +85,9 @@ Key rules:
   AI-derived content (classifications, descriptions, flags, analysis details) and the report stay locked until
   `interpretationState(case) === 'done'`. Show the reason with `<InterpretationPending>`.
 - Every user-visible change to a case appends an `AuditEvent`.
+- The report header (Patient / Specimen / Clinical / Test) is built by `reportHeader()` in
+  `domain/report/buildReport.ts`; clinical notes stay out of the report. Sign-off needs a patient ID and at least
+  one selected variant (`signOffBlockReason`).
 - Report regions that can be quoted in the chat carry `data-section-title` (and `data-section` when the
   assistant may edit them); see `features/report/SelectionQuote.tsx`. A quote travels with the chat message
   (`ChatMessage.quote`) to `services.interpretation.chat()`.

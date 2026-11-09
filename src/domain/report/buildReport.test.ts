@@ -1,6 +1,12 @@
 import { seedCases } from '../../mocks/seedCases'
 import { sampleIdFromFileName } from '../case/factory'
-import { buildReport, draftSummary, reportToPlainText, richTextToPlain } from './buildReport'
+import {
+  buildReport,
+  draftSummary,
+  reportToPlainText,
+  richTextToPlain,
+  signOffBlockReason,
+} from './buildReport'
 
 const nsclc = () => seedCases().find((c) => c.metadata.sampleId === 'S26-1187')!
 
@@ -33,9 +39,31 @@ describe('buildReport', () => {
     expect(buildReport(c).sections.summary).toBe('Custom summary.')
   })
 
+  it('lists patient, specimen, clinical and test details in the header', () => {
+    const header = buildReport(nsclc()).header
+    expect(header.map((b) => b.title)).toEqual(['Patient', 'Specimen', 'Clinical', 'Test'])
+    const field = (label: string) => header.flatMap((b) => b.fields).find((f) => f.label === label)?.value
+    expect(field('Patient ID')).toBe('PSN-7Q4K-2291')
+    expect(field('Sex')).toBe('Female')
+    expect(field('Year of birth')).toBe('1961')
+    expect(field('Collected')).toBe('29 Oct 2026')
+    expect(field('Diagnosis')).toMatch(/Adenocarcinoma/)
+    expect(field('Tumor type')).toBe('Lung Adenocarcinoma (LUAD)')
+  })
+
+  it('requires a patient ID and at least one variant to sign', () => {
+    const c = nsclc()
+    expect(signOffBlockReason(c)).toBeUndefined()
+    expect(signOffBlockReason({ ...c, metadata: { ...c.metadata, patientId: undefined } })).toMatch(
+      /patient ID/,
+    )
+    expect(signOffBlockReason({ ...c, selected: [] })).toMatch(/at least one variant/)
+  })
+
   it('exports plain text', () => {
     const text = reportToPlainText(buildReport(nsclc()))
     expect(text).toContain('MOLECULAR PATHOLOGY REPORT — DRAFT')
+    expect(text).toContain('PATIENT\nPatient ID: PSN-7Q4K-2291')
     expect(text).toContain('- EGFR p.L858R (c.2573T>G), VAF 31%')
   })
 
