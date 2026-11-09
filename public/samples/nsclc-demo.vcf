@@ -1,0 +1,23 @@
+##fileformat=VCFv4.2
+##source=Mutect2 4.6 (synthetic demo file)
+##reference=GRCh38
+##contig=<ID=chr3,length=198295559>
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr9,length=138394717>
+##contig=<ID=chr11,length=135086622>
+##contig=<ID=chr13,length=114364328>
+##contig=<ID=chr17,length=83257441>
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=weak_evidence,Description="Mutation does not meet likelihood threshold">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele fractions of alternate alleles">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S26-1201_TUMOR
+chr3	179218303	.	G	A	.	PASS	DP=960	GT:AD:AF:DP	0/1:902,58:0.06:960
+chr7	55191822	.	T	G	.	PASS	DP=1210	GT:AD:AF:DP	0/1:833,377:0.31:1210
+chr11	108304736	.	A	C	.	PASS	DP=630	GT:AD:AF:DP	0/1:479,151:0.24:630
+chr13	32340300	.	GT	G	.	PASS	DP=1045	GT:AD:AF:DP	0/1:533,512:0.49:1045
+chr17	7673802	.	C	T	.	PASS	DP=880	GT:AD:AF:DP	0/1:634,246:0.28:880
+chr17	7675088	.	C	A	.	weak_evidence	DP=612	GT:AD:AF:DP	0/1:605,7:0.01:612

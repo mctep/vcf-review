@@ -1,0 +1,181 @@
+import { ONCOGENICITY_LABEL, tierRank } from '../labels'
+import type { Case, ReportSectionId, RichText, Variant } from '../types'
+
+export interface ReportRow {
+  id: string
+  gene: string
+  notation: string
+  hgvsc?: string
+  vaf?: number
+  copyNumber?: number
+  classification: string
+  tierLevel: string
+  therapies: string
+}
+
+export interface ReportModel {
+  caseId: string
+  sampleId: string
+  tumorType: string
+  tumorContent?: number
+  specimen?: string
+  physician?: string
+  panel?: string
+  referenceGenome: string
+  significant: ReportRow[]
+  uncertain: ReportRow[]
+  sections: Record<ReportSectionId, string>
+  version: string
+  status: 'draft' | 'signed'
+  signedBy?: string
+  signedAt?: string
+}
+
+const fmtNotation = (v: Variant) =>
+  v.kind === 'fusion' ? `${v.gene}${v.notation}` : `${v.gene} ${v.notation}`
+
+function toRow(v: Variant): ReportRow {
+  return {
+    id: v.id,
+    gene: v.gene,
+    notation: v.notation,
+    hgvsc: v.hgvsc,
+    vaf: v.vaf,
+    copyNumber: v.copyNumber,
+    classification: ONCOGENICITY_LABEL[v.oncogenicity],
+    tierLevel: v.tier === 'III' || v.tier === 'IV' ? `Tier ${v.tier}` : `Tier ${v.tierLevel}`,
+    therapies:
+      v.therapies
+        .filter((t) => t.effect === 'sensitive')
+        .map((t) => t.drug)
+        .join(', ') || '—',
+  }
+}
+
+export function richTextToPlain(text: RichText): string {
+  return text.map((part) => (typeof part === 'string' ? part : part.cite.label)).join('')
+}
+
+const joinList = (items: string[]) =>
+  items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+
+/** Deterministic draft of the clinical summary built from the selected variants. */
+export function draftSummary(variants: Variant[], tumorType: string): string {
+  if (variants.length === 0) return 'No reportable variants were selected for this report.'
+  const sentences: string[] = []
+  const tier1 = variants.filter((v) => v.tier === 'I')
+  const tier2 = variants.filter((v) => v.tier === 'II')
+  const vus = variants.filter((v) => v.tier === 'III')
+
+  for (const v of tier1) {
+    const drugs = v.therapies.filter((t) => t.effect === 'sensitive').map((t) => t.drug)
+    sentences.push(
+      `Molecular profiling of this ${tumorType.toLowerCase()} identified ${fmtNotation(v)} (Tier ${v.tierLevel})` +
+        (drugs.length ? `, which predicts sensitivity to ${joinList(drugs)}.` : '.'),
+    )
+  }
+  if (tier2.length) {
+    sentences.push(
+      `Additional alterations of potential clinical significance: ${joinList(tier2.map(fmtNotation))}.`,
+    )
+  }
+  const germline = variants.filter((v) => v.flags.includes('possible-germline'))
+  if (germline.length) {
+    sentences.push(
+      `The allele fraction of ${joinList(germline.map(fmtNotation))} is consistent with a possible germline origin.`,
+    )
+  }
+  if (vus.length) {
+    sentences.push(
+      `${vus.length} variant${vus.length > 1 ? 's' : ''} of uncertain significance ${vus.length > 1 ? 'are' : 'is'} listed for completeness and should not guide treatment.`,
+    )
+  }
+  return sentences.join(' ')
+}
+
+export function draftRecommendations(variants: Variant[]): string {
+  const lines: string[] = []
+  const tier1 = variants.filter((v) => v.tier === 'I' && v.therapies.length)
+  if (tier1.length) {
+    lines.push(
+      `Consider targeted therapy according to current guidelines (${tier1.map(fmtNotation).join('; ')}).`,
+    )
+  }
+  if (variants.some((v) => v.flags.includes('possible-germline'))) {
+    lines.push('Germline confirmation testing and referral for genetic counselling are recommended.')
+  }
+  if (variants.some((v) => v.flags.includes('subclonal'))) {
+    lines.push('Subclonal alterations may be relevant for resistance monitoring at progression.')
+  }
+  if (lines.length === 0)
+    lines.push('No specific therapeutic recommendations based on the selected variants.')
+  return lines.map((l) => `• ${l}`).join('\n')
+}
+
+export const DEFAULT_METHODS =
+  'Somatic variants were called from tumor DNA, annotated and ranked by the laboratory pipeline, and interpreted ' +
+  'against curated clinical, population and functional sources. Classification follows the AMP/ASCO/CAP tiers ' +
+  'and the ClinGen/CGC/VICC oncogenicity framework. Variants below 5% allele fraction or 100x coverage are not ' +
+  'reported. This report is a prototype output based on synthetic data and must not be used for clinical decisions.'
+
+export function buildReport(c: Case): ReportModel {
+  const selected = c.variants
+    .filter((v) => c.selected.includes(v.id))
+    .sort((a, b) => tierRank(a.tier) - tierRank(b.tier))
+  const tumorType = c.metadata.tumorType?.name ?? 'tumor'
+
+  const sections: Record<ReportSectionId, string> = {
+    summary: c.report.overrides.summary ?? draftSummary(selected, tumorType),
+    recommendations: c.report.overrides.recommendations ?? draftRecommendations(selected),
+    methods: c.report.overrides.methods ?? DEFAULT_METHODS,
+  }
+
+  return {
+    caseId: c.id,
+    sampleId: c.metadata.sampleId,
+    tumorType,
+    tumorContent: c.metadata.tumorContent,
+    specimen: c.metadata.specimenType,
+    physician: c.metadata.orderingPhysician,
+    panel: c.metadata.panel,
+    referenceGenome: c.metadata.referenceGenome,
+    significant: selected.filter((v) => v.tier === 'I' || v.tier === 'II').map(toRow),
+    uncertain: selected.filter((v) => v.tier === 'III').map(toRow),
+    sections,
+    version: c.report.version,
+    status: c.report.status,
+    signedBy: c.report.signedBy,
+    signedAt: c.report.signedAt,
+  }
+}
+
+const rowText = (r: ReportRow) =>
+  `- ${r.gene} ${r.notation}${r.hgvsc ? ` (${r.hgvsc})` : ''}` +
+  `${r.vaf !== undefined ? `, VAF ${r.vaf}%` : ''}${r.copyNumber !== undefined ? `, CN ${r.copyNumber}` : ''}` +
+  ` — ${r.classification}, ${r.tierLevel}; therapies: ${r.therapies}`
+
+/** Plain-text export used by "Copy output". */
+export function reportToPlainText(r: ReportModel): string {
+  return [
+    `MOLECULAR PATHOLOGY REPORT — ${r.status === 'signed' ? `v${r.version} (signed)` : 'DRAFT'}`,
+    `Case: ${r.caseId}`,
+    `Sample: ${r.sampleId} · ${r.tumorType}${r.tumorContent ? ` · tumor content ${r.tumorContent}%` : ''}`,
+    `Reference: ${r.referenceGenome}${r.panel ? ` · Panel: ${r.panel}` : ''}`,
+    '',
+    'SUMMARY',
+    r.sections.summary,
+    '',
+    'CLINICALLY SIGNIFICANT VARIANTS',
+    ...(r.significant.length ? r.significant.map(rowText) : ['- None']),
+    '',
+    'VARIANTS OF UNCERTAIN SIGNIFICANCE',
+    ...(r.uncertain.length ? r.uncertain.map(rowText) : ['- None']),
+    '',
+    'RECOMMENDATIONS',
+    r.sections.recommendations,
+    '',
+    'METHODS AND LIMITATIONS',
+    r.sections.methods,
+    ...(r.signedBy ? ['', `Signed by ${r.signedBy} on ${r.signedAt}`] : []),
+  ].join('\n')
+}
