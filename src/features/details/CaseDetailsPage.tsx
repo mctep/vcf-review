@@ -13,7 +13,7 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { DatabaseZap, FileCode2, Lock } from 'lucide-react'
+import { DatabaseZap, FileCode2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { sourceLocation } from '../../domain/case/factory'
@@ -380,12 +380,9 @@ export function CaseDetailsPage() {
               ).map(([label, value]) => (
                 <HStack key={label} justify="space-between" gap="3">
                   <Text color="fg.muted">{label}</Text>
-                  <HStack gap="1.5">
-                    <Mono tone="default" size="xs">
-                      {value}
-                    </Mono>
-                    <Lock size={12} color="currentColor" opacity={0.5} />
-                  </HStack>
+                  <Mono tone="default" size="xs">
+                    {value}
+                  </Mono>
                 </HStack>
               ))}
             </Stack>
