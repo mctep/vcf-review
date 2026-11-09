@@ -1,3 +1,4 @@
+import { staleInputs } from '../domain/case/interpretation'
 import { ONCOTREE } from '../mocks/oncotree'
 import { useCaseStore } from './caseStore'
 
@@ -65,17 +66,42 @@ describe('caseStore background processing', () => {
     expect(get(id).processing.steps.interpretation).toBe('done')
   })
 
-  it('re-runs interpretation when the tumor type changes afterwards', async () => {
+  it('marks the draft stale when inputs change and re-runs only on request', async () => {
     const id = create('S26-1201_LUAD_tumor.vcf.gz')
     await settle()
     expect(get(id).status).toBe('ready')
+    useCaseStore.getState().editDescription(id, get(id).variants[0].id, 'gene', 'Edited')
 
     useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUSC') })
+    await settle()
+    expect(get(id).status).toBe('review')
+    expect(staleInputs(get(id))).toEqual(['tumorType'])
+    expect(get(id).audit.some((e) => e.message.includes('tumor type LUAD → LUSC'))).toBe(true)
+
+    // Changing it back makes the draft valid again.
+    useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUAD') })
+    expect(staleInputs(get(id))).toEqual([])
+
+    useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUSC') })
+    useCaseStore.getState().rerunInterpretation(id)
     expect(get(id).status).toBe('processing')
-    expect(get(id).audit.some((e) => e.message.includes('re-run'))).toBe(true)
+    expect(get(id).edits).toEqual({})
+    expect(get(id).audit.at(-1)?.message).toMatch(/re-run after input change .*1 reviewer edit discarded/)
     await settle()
     expect(get(id).status).toBe('ready')
+    expect(staleInputs(get(id))).toEqual([])
+    expect(get(id).interpretationContext?.tumorType?.code).toBe('LUSC')
+  })
+
+  it('keeps the current draft when the reviewer decides so', async () => {
+    const id = create('S26-1201_LUAD_tumor.vcf.gz')
+    await settle()
+    useCaseStore.getState().updateMetadata(id, { tumorContent: 55 })
+    expect(staleInputs(get(id))).toEqual(['tumorContent'])
+    useCaseStore.getState().keepInterpretation(id)
+    expect(staleInputs(get(id))).toEqual([])
     expect(get(id).processing.steps.interpretation).toBe('done')
+    expect(get(id).audit.at(-1)?.message).toMatch(/kept despite input change \(tumor content 60% → 55%\)/)
   })
 
   it('does not let LIMS overwrite user-entered values', () => {

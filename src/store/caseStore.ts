@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { auditEvent, createCase, CURRENT_USER, newId, processingProgress } from '../domain/case/factory'
 import { STEP_LABEL } from '../domain/labels'
+import { describeInputChanges, isInterpretationStale } from '../domain/case/interpretation'
 import { buildReport } from '../domain/report/buildReport'
 import { canStartInterpretation, REQUIRED_FIELD_LABELS } from '../domain/metadata/requiredFields'
 import { resolveTumorType } from '../domain/metadata/tumorTypeMapping'
@@ -23,14 +24,6 @@ import type { LimsOrder } from '../services/lims'
 
 type MetadataPatch = Partial<Omit<CaseMetadata, 'origin'>>
 
-const INTERPRETATION_FIELDS: InterpretationField[] = ['tumorType', 'tumorContent']
-
-function sameValue(field: InterpretationField, a: CaseMetadata[InterpretationField], b: unknown) {
-  if (field === 'tumorType')
-    return (a as CaseMetadata['tumorType'])?.code === (b as CaseMetadata['tumorType'])?.code
-  return a === b
-}
-
 interface CaseStore {
   cases: Case[]
   /** Starts background jobs for seeded cases that are mid-processing. Idempotent. */
@@ -46,6 +39,13 @@ interface CaseStore {
   applyLimsOrder: (caseId: string, order: LimsOrder) => void
   /** Fetches the test order from the LIMS and applies it. Runs automatically when a case is created. */
   fetchLims: (caseId: string) => Promise<'applied' | 'not-found'>
+  /**
+   * Re-runs AI interpretation after its inputs changed. Reviewer edits to descriptions and report text are
+   * discarded (they were written for the old draft); variant selection is kept.
+   */
+  rerunInterpretation: (caseId: string) => void
+  /** Keeps the current draft although its inputs changed (the reviewer judged the change irrelevant). */
+  keepInterpretation: (caseId: string) => void
   /** Confirms a pre-filled value that came from an ambiguous source. */
   confirmField: (caseId: string, field: InterpretationField) => void
   toggleVariant: (caseId: string, variantId: string) => void
@@ -97,6 +97,8 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       if (steps.interpretation !== 'waiting') setStep(id, 'interpretation', 'waiting')
       return
     }
+    // The draft is valid for the inputs it started with; later changes make it stale.
+    const context = { tumorType: c.metadata.tumorType, tumorContent: c.metadata.tumorContent }
     const cancel = services.processing.runInterpretation(id, {
       onStep: (step, state) => setStep(id, step, state),
       onError: (step, message) => fail(id, step, message),
@@ -106,6 +108,7 @@ export const useCaseStore = create<CaseStore>((set, get) => {
         patchCase(id, (x) => ({
           ...x,
           status: 'ready',
+          interpretationContext: context,
           processing: { ...x.processing, progress: 100, finishedAt: new Date().toISOString() },
         }))
         log(
@@ -148,28 +151,6 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       fromStep,
     )
     jobs.set(id, cancel)
-  }
-
-  /** Interpretation inputs changed after it ran: drop the old draft and run again. */
-  const rerunInterpretation = (id: string) => {
-    const c = getCase(id)
-    if (!c || c.report.status === 'signed') return
-    const step = c.processing.steps.interpretation
-    if (step !== 'done' && step !== 'running') return
-    jobs.get(id)?.()
-    jobs.delete(id)
-    patchCase(id, (x) => {
-      const steps = { ...x.processing.steps, interpretation: 'pending' as const }
-      return {
-        ...x,
-        status: 'processing',
-        processing: { ...x.processing, steps, progress: processingProgress(steps), finishedAt: undefined },
-      }
-    })
-    log(
-      id,
-      auditEvent('processing.retry', 'Interpretation inputs changed — AI interpretation re-run', 'System'),
-    )
   }
 
   /** Marks a ready case as "in review" on the first reviewer action. */
@@ -219,9 +200,7 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     updateMetadata(caseId, patch, origin = 'user', auditMessage) {
       const c = getCase(caseId)
       if (!c) return
-      const changed = INTERPRETATION_FIELDS.filter(
-        (f) => f in patch && !sameValue(f, c.metadata[f], patch[f]),
-      )
+      const wasStale = isInterpretationStale(c)
       const originPatch = Object.fromEntries(
         Object.keys(patch)
           .filter((k) => k !== 'unconfirmed')
@@ -245,8 +224,60 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       })
       if (auditMessage)
         log(caseId, auditEvent('metadata.updated', auditMessage, origin === 'lims' ? 'LIMS' : CURRENT_USER))
-      if (changed.length) rerunInterpretation(caseId)
+      const after = getCase(caseId)!
+      if (!wasStale && isInterpretationStale(after))
+        log(
+          caseId,
+          auditEvent(
+            'metadata.updated',
+            `Interpretation inputs changed (${describeInputChanges(after)}) — AI draft is out of date, awaiting reviewer decision`,
+            'System',
+          ),
+        )
       maybeInterpret(caseId)
+    },
+
+    rerunInterpretation(caseId) {
+      const c = getCase(caseId)
+      if (!c || c.report.status === 'signed' || c.processing.steps.interpretation !== 'done') return
+      if (!canStartInterpretation(c.metadata)) return
+      const changes = describeInputChanges(c)
+      const discarded = Object.keys(c.edits).length + Object.keys(c.report.overrides).length
+      jobs.get(caseId)?.()
+      jobs.delete(caseId)
+      patchCase(caseId, (x) => {
+        const steps = { ...x.processing.steps, interpretation: 'pending' as const }
+        return {
+          ...x,
+          status: 'processing',
+          edits: {},
+          report: { ...x.report, overrides: {}, highlighted: undefined },
+          processing: { ...x.processing, steps, progress: processingProgress(steps), finishedAt: undefined },
+        }
+      })
+      log(
+        caseId,
+        auditEvent(
+          'processing.retry',
+          `AI interpretation re-run${changes ? ` after input change (${changes})` : ''}` +
+            (discarded ? `; ${discarded} reviewer edit${discarded === 1 ? '' : 's'} discarded` : ''),
+        ),
+      )
+      maybeInterpret(caseId)
+    },
+
+    keepInterpretation(caseId) {
+      const c = getCase(caseId)
+      if (!c || !isInterpretationStale(c)) return
+      const changes = describeInputChanges(c)
+      patchCase(caseId, (x) => ({
+        ...x,
+        interpretationContext: { tumorType: x.metadata.tumorType, tumorContent: x.metadata.tumorContent },
+      }))
+      log(
+        caseId,
+        auditEvent('metadata.updated', `Current AI interpretation kept despite input change (${changes})`),
+      )
     },
 
     applyLimsOrder(caseId, order) {

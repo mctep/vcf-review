@@ -8,6 +8,7 @@ import { buildReport, reportToPlainText } from '../../domain/report/buildReport'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
 import { ProcessingBanner } from '../case/ProcessingBanner'
+import { StaleInterpretationCallout } from '../case/StaleInterpretationCallout'
 import { VariantDetail } from './VariantDetail'
 import { VariantList } from './VariantList'
 
@@ -72,6 +73,7 @@ export function VariantsPage() {
         }
       />
       <ProcessingBanner c={c} compact />
+      <StaleInterpretationCallout c={c} />
       {!annotated || !active ? (
         <VariantsSkeleton />
       ) : (

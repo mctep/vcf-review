@@ -26,6 +26,7 @@ import { InfoTip, Mono, SectionTitle } from '../../ui'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
 import { ProcessingBanner } from '../case/ProcessingBanner'
+import { StaleInterpretationCallout } from '../case/StaleInterpretationCallout'
 import { OncoTreeCombobox } from './OncoTreeCombobox'
 
 type Key = keyof Omit<CaseMetadata, 'origin'>
@@ -171,6 +172,7 @@ export function CaseDetailsPage() {
     <>
       <CaseHeader c={c} />
       <ProcessingBanner c={c} />
+      <StaleInterpretationCallout c={c} />
 
       <Grid templateColumns={{ base: '1fr', xl: '2fr 1fr' }} gap="6" alignItems="start">
         <Stack gap="6">

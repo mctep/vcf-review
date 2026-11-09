@@ -266,5 +266,12 @@ export function seedCases(): Case[] {
     chat: [],
   }
 
-  return [colorectal, nsclc, failed, melanoma, breast]
+  return [colorectal, nsclc, failed, melanoma, breast].map((c) =>
+    c.processing.steps.interpretation === 'done'
+      ? {
+          ...c,
+          interpretationContext: { tumorType: c.metadata.tumorType, tumorContent: c.metadata.tumorContent },
+        }
+      : c,
+  )
 }

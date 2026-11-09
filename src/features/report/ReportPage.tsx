@@ -3,12 +3,13 @@ import { Copy, Lock } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import { toaster } from '../../components/ui/toaster'
-import { interpretationState } from '../../domain/case/interpretation'
+import { interpretationState, isInterpretationStale } from '../../domain/case/interpretation'
 import { buildReport, reportToPlainText } from '../../domain/report/buildReport'
 import { useCaseStore } from '../../store/caseStore'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
 import { ProcessingBanner } from '../case/ProcessingBanner'
+import { StaleInterpretationCallout } from '../case/StaleInterpretationCallout'
 import { InterpretationPending } from '../case/InterpretationPending'
 import { AgentChat } from './AgentChat'
 import { ReportDocument } from './ReportDocument'
@@ -29,7 +30,12 @@ export function ReportPage() {
     toaster.create({ type: 'success', title: 'Report text copied to clipboard', duration: 3000 })
   }
 
-  const signBlock = c.selected.length === 0 ? 'Select at least one variant to include' : undefined
+  const signBlock =
+    c.selected.length === 0
+      ? 'Select at least one variant to include'
+      : isInterpretationStale(c)
+        ? 'Interpretation inputs changed — re-run the interpretation or keep the current draft first'
+        : undefined
 
   return (
     <>
@@ -58,6 +64,7 @@ export function ReportPage() {
         }
       />
       <ProcessingBanner c={c} compact />
+      <StaleInterpretationCallout c={c} />
       {!interpreted ? (
         <InterpretationPending c={c} subject="The report" size="lg" />
       ) : (

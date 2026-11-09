@@ -2,7 +2,13 @@ import { seedCases } from '../../mocks/seedCases'
 import { VARIANT_SETS } from '../../mocks/variants'
 import type { Case } from '../types'
 import { createCase, stepsWith } from './factory'
-import { interpretationBlockReason, interpretationState, isAnnotated } from './interpretation'
+import {
+  describeInputChanges,
+  interpretationBlockReason,
+  interpretationState,
+  isAnnotated,
+  staleInputs,
+} from './interpretation'
 
 const fresh = (): Case => createCase({ kind: 'local', fileName: 'S26-1201.vcf', sizeBytes: 10 })
 
@@ -51,5 +57,36 @@ describe('interpretation state', () => {
     const c = seedCases().find((x) => x.metadata.sampleId === 'S26-1187')!
     expect(interpretationState(c)).toBe('done')
     expect(interpretationBlockReason(c)).toBeUndefined()
+  })
+})
+
+describe('staleInputs', () => {
+  const done = (): Case => {
+    const c = annotated('pending')
+    const tumorType = { code: 'LUAD', name: 'Lung Adenocarcinoma', tissue: 'Lung' }
+    return {
+      ...c,
+      metadata: { ...c.metadata, tumorType, tumorContent: 60 },
+      processing: { ...c.processing, steps: { ...c.processing.steps, interpretation: 'done' } },
+      interpretationContext: { tumorType, tumorContent: 60 },
+    }
+  }
+
+  it('lists inputs that differ from the drafted context', () => {
+    const c = done()
+    expect(staleInputs(c)).toEqual([])
+    const changed = { ...c, metadata: { ...c.metadata, tumorContent: 40 } }
+    expect(staleInputs(changed)).toEqual(['tumorContent'])
+    expect(describeInputChanges(changed)).toBe('tumor content 60% → 40%')
+  })
+
+  it('never reports a signed report as stale', () => {
+    const c = done()
+    const signed = {
+      ...c,
+      metadata: { ...c.metadata, tumorContent: 40 },
+      report: { ...c.report, status: 'signed' as const },
+    }
+    expect(staleInputs(signed)).toEqual([])
   })
 })

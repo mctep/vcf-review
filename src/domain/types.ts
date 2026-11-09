@@ -209,6 +209,12 @@ export interface ReportState {
 
 export type ReportSectionId = 'summary' | 'recommendations' | 'methods'
 
+/** Interpretation inputs an AI draft was produced for (or explicitly kept for). */
+export interface InterpretationContext {
+  tumorType?: TumorType
+  tumorContent?: number
+}
+
 export interface Case {
   id: string
   createdAt: string
@@ -224,6 +230,11 @@ export interface Case {
   /** User-edited descriptions keyed by `${variantId}:${field}`. */
   edits: Record<string, string>
   report: ReportState
+  /**
+   * Inputs the current AI draft is valid for. When the metadata no longer matches, the draft is stale and a
+   * reviewer decides whether to re-run it (see `staleInputs`).
+   */
+  interpretationContext?: InterpretationContext
   audit: AuditEvent[]
   chat: ChatMessage[]
 }
