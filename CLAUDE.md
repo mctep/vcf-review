@@ -45,14 +45,14 @@ src/
   domain/        Pure logic and types, no React. Covered by tests.
     types.ts     Case, Variant, ProcessingState, CaseMetadata, AuditEvent…
     case/        createCase(), audit helpers, sample id from file name, interpretation state
-    metadata/    Required fields for interpretation (tumor type, tumor content)
+    metadata/    Required fields / blockers for interpretation, ICD-O-3 → OncoTree mapping
     upload/      File rules: accepted extensions, size, NFS / s3:// path building
     report/      buildReport(), draft summary/recommendations, plain-text export
     labels.ts    Display labels and theme palette names for domain enums
   services/      Interfaces + mock implementations. The only "backend". Wired in services/index.ts.
     storage      listConnections(), browse() for NFS/S3
     processing   runPipeline() (upload→filtering) and runInterpretation(); `?fail=<step>` demo switch
-    lims         fetchOrder(sampleId)
+    lims         fetchOrder(sampleId) → order or null (coded diagnosis, tumor content when recorded)
     interpretation  chat() for the report assistant
   mocks/         Synthetic data: variants, seed cases, connections/file tree, OncoTree subset, LIMS orders, canned replies
   store/         caseStore (cases, background jobs, review actions, audit), uiStore (drawers)
@@ -67,8 +67,13 @@ src/
 
 Key rules:
 
-- Background jobs live in `store/caseStore.ts`. A case is created before processing starts; AI interpretation
-  waits until `canStartInterpretation(metadata)` is true and starts automatically when metadata is filled in.
+- Background jobs live in `store/caseStore.ts`. A case is created before processing starts, and the LIMS order
+  is fetched automatically (`fetchLims`). The tumor type is mapped from the ICD-O-3 code (`tumorTypeMapping.ts`);
+  ambiguous codes are pre-filled but listed in `metadata.unconfirmed`. AI interpretation starts automatically
+  once `canStartInterpretation(metadata)` is true (fields present and confirmed); a value typed by a user counts
+  as confirmed. Changing tumor type or tumor content after interpretation re-runs it. Sign-off requires an
+  explicit confirmation of the interpretation context.
+- LIMS never overwrites values with `origin: 'user'`.
 - What is visible when is decided by `domain/case/interpretation.ts`: annotated variants (gene, HGVS, VAF,
   consequence) and report selection are available as soon as filtering & ranking are done (`isAnnotated`);
   AI-derived content (classifications, descriptions, flags, analysis details) and the report stay locked until

@@ -43,7 +43,12 @@ export function ReportPage() {
                   <Lock size={16} /> Signed v{c.report.version}
                 </HStack>
               ) : (
-                <SignOffDialog disabled={!!signBlock} reason={signBlock} onSign={() => sign(c.id)} />
+                <SignOffDialog
+                  disabled={!!signBlock}
+                  reason={signBlock}
+                  metadata={c.metadata}
+                  onSign={() => sign(c.id)}
+                />
               )}
               <Button colorPalette="brand" variant="outline" onClick={copy}>
                 <Copy /> Copy output

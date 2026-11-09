@@ -2,41 +2,87 @@ import { ONCOTREE } from '../mocks/oncotree'
 import { useCaseStore } from './caseStore'
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
-async function settle(times = 10) {
+async function settle(times = 15) {
   for (let i = 0; i < times; i++) await flush()
 }
+const create = (fileName: string) =>
+  useCaseStore.getState().createCase({ kind: 'local', fileName, sizeBytes: 100 })
+const get = (id: string) => useCaseStore.getState().cases.find((c) => c.id === id)!
+const tumor = (code: string) => ONCOTREE.find((t) => t.code === code)!
 
 describe('caseStore background processing', () => {
-  it('creates a case immediately and waits for required metadata before interpretation', async () => {
-    const id = useCaseStore
-      .getState()
-      .createCase({ kind: 'local', fileName: 'S26-1201_LUAD_tumor.vcf.gz', sizeBytes: 100 })
-    const get = () => useCaseStore.getState().cases.find((c) => c.id === id)!
-
-    expect(get().status).toBe('processing')
-    expect(get().metadata.sampleId).toBe('S26-1201')
+  it('creates a case immediately and waits for manual metadata when the LIMS has no order', async () => {
+    const id = create('X-unknown_tumor.vcf.gz')
+    expect(get(id).status).toBe('processing')
 
     await settle()
-    expect(get().processing.steps.filtering).toBe('done')
-    expect(get().variants.length).toBeGreaterThan(0)
-    expect(get().processing.steps.interpretation).toBe('waiting')
+    expect(get(id).processing.steps.filtering).toBe('done')
+    expect(get(id).variants.length).toBeGreaterThan(0)
+    expect(get(id).processing.steps.interpretation).toBe('waiting')
+    expect(get(id).audit.some((e) => e.message.startsWith('No LIMS order found'))).toBe(true)
 
-    useCaseStore.getState().updateMetadata(id, { tumorType: ONCOTREE[0] })
-    expect(get().processing.steps.interpretation).toBe('waiting')
+    useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUAD') })
+    expect(get(id).processing.steps.interpretation).toBe('waiting')
 
     useCaseStore.getState().updateMetadata(id, { tumorContent: 60 })
     await settle()
-    expect(get().processing.steps.interpretation).toBe('done')
-    expect(get().status).toBe('ready')
+    expect(get(id).processing.steps.interpretation).toBe('done')
+    expect(get(id).status).toBe('ready')
+  })
+
+  it('runs fully automatically when the LIMS order has an exact code and tumor content', async () => {
+    const id = create('S26-1201_LUAD_tumor.vcf.gz')
+    await settle()
+    const c = get(id)
+    expect(c.metadata.tumorType?.code).toBe('LUAD')
+    expect(c.metadata.origin.tumorType).toBe('lims')
+    expect(c.metadata.tumorContent).toBe(60)
+    expect(c.metadata.unconfirmed).toEqual([])
+    expect(c.processing.steps.interpretation).toBe('done')
+    expect(c.audit.some((e) => e.message.includes('→ Lung Adenocarcinoma (LUAD)'))).toBe(true)
+  })
+
+  it('waits for confirmation when the diagnosis code is ambiguous', async () => {
+    const id = create('S26-1210_NSCLC.vcf.gz')
+    await settle()
+    expect(get(id).metadata.tumorType?.code).toBe('NSCLC')
+    expect(get(id).metadata.unconfirmed).toEqual(['tumorType'])
+    expect(get(id).processing.steps.interpretation).toBe('waiting')
+
+    useCaseStore.getState().confirmField(id, 'tumorType')
+    await settle()
+    expect(get(id).metadata.unconfirmed).toEqual([])
+    expect(get(id).processing.steps.interpretation).toBe('done')
+  })
+
+  it('treats picking a tumor type manually as confirmation', async () => {
+    const id = create('S26-1210_NSCLC.vcf.gz')
+    await settle()
+    useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUAD') })
+    await settle()
+    expect(get(id).metadata.unconfirmed).toEqual([])
+    expect(get(id).metadata.origin.tumorType).toBe('user')
+    expect(get(id).processing.steps.interpretation).toBe('done')
+  })
+
+  it('re-runs interpretation when the tumor type changes afterwards', async () => {
+    const id = create('S26-1201_LUAD_tumor.vcf.gz')
+    await settle()
+    expect(get(id).status).toBe('ready')
+
+    useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUSC') })
+    expect(get(id).status).toBe('processing')
+    expect(get(id).audit.some((e) => e.message.includes('re-run'))).toBe(true)
+    await settle()
+    expect(get(id).status).toBe('ready')
+    expect(get(id).processing.steps.interpretation).toBe('done')
   })
 
   it('does not let LIMS overwrite user-entered values', () => {
-    const id = useCaseStore
-      .getState()
-      .createCase({ kind: 'local', fileName: 'S26-1202_mel.vcf', sizeBytes: 100 })
+    const id = create('S26-1202_mel.vcf')
     useCaseStore.getState().updateMetadata(id, { panel: 'My panel' })
     useCaseStore.getState().applyLimsOrder(id, { panel: 'LIMS panel', patientId: 'P1' })
-    const c = useCaseStore.getState().cases.find((x) => x.id === id)!
+    const c = get(id)
     expect(c.metadata.panel).toBe('My panel')
     expect(c.metadata.patientId).toBe('P1')
     expect(c.metadata.origin.patientId).toBe('lims')
@@ -45,14 +91,12 @@ describe('caseStore background processing', () => {
   it('moves a ready case to review on the first selection change and signs it', () => {
     const id = useCaseStore.getState().cases.find((c) => c.metadata.sampleId === 'S26-1187')!.id
     useCaseStore.getState().toggleVariant(id, 'atm-vus')
-    let c = useCaseStore.getState().cases.find((x) => x.id === id)!
-    expect(c.selected).not.toContain('atm-vus')
+    expect(get(id).selected).not.toContain('atm-vus')
     useCaseStore.getState().signReport(id)
-    c = useCaseStore.getState().cases.find((x) => x.id === id)!
-    expect(c.status).toBe('signed')
-    expect(c.report.version).toBe('1.0')
+    expect(get(id).status).toBe('signed')
+    expect(get(id).report.version).toBe('1.0')
     // Signed reports are locked.
     useCaseStore.getState().toggleVariant(id, 'atm-vus')
-    expect(useCaseStore.getState().cases.find((x) => x.id === id)!.selected).not.toContain('atm-vus')
+    expect(get(id).selected).not.toContain('atm-vus')
   })
 })

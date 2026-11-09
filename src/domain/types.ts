@@ -51,6 +51,19 @@ export interface TumorType {
 
 export type MetadataOrigin = 'vcf' | 'lims' | 'user'
 
+/** Fields the AI interpretation depends on. */
+export type InterpretationField = 'tumorType' | 'tumorContent'
+
+/** Coded diagnosis as it arrives with the test order (ICD-O-3 topography + morphology). */
+export interface DiagnosisCode {
+  system: 'ICD-O-3'
+  /** Topography, e.g. `C34.1` (upper lobe, lung). */
+  topography: string
+  /** Morphology, e.g. `8140/3` (adenocarcinoma, NOS). */
+  morphology: string
+  label: string
+}
+
 export interface CaseMetadata {
   sampleId: string
   referenceGenome: 'GRCh37' | 'GRCh38'
@@ -67,7 +80,10 @@ export interface CaseMetadata {
   specimenType?: string
   collectionDate?: string
   diagnosis?: string
+  diagnosisCode?: DiagnosisCode
   clinicalNotes?: string
+  /** Values that were pre-filled automatically but must be confirmed by a person before interpretation. */
+  unconfirmed?: InterpretationField[]
   /** Where each field value came from. */
   origin: Partial<Record<keyof Omit<CaseMetadata, 'origin'>, MetadataOrigin>>
 }

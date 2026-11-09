@@ -13,13 +13,14 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { DatabaseZap, FileCode2, Lock } from 'lucide-react'
+import { AlertTriangle, Check, DatabaseZap, FileCode2, Lock } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { sourceLocation } from '../../domain/case/factory'
-import { missingRequiredFields } from '../../domain/metadata/requiredFields'
+import { interpretationBlockers, type RequiredField } from '../../domain/metadata/requiredFields'
+import { mapDiagnosisToOncoTree } from '../../domain/metadata/tumorTypeMapping'
+import { toaster } from '../../components/ui/toaster'
 import { formatBytes } from '../../domain/upload/fileRules'
 import type { CaseMetadata, MetadataOrigin } from '../../domain/types'
-import { services } from '../../services'
 import { useCaseStore } from '../../store/caseStore'
 import { InfoTip, Mono, SectionTitle } from '../../ui'
 import { CaseHeader } from '../case/CaseHeader'
@@ -52,6 +53,42 @@ function OriginBadge({ origin }: { origin?: MetadataOrigin }) {
   )
 }
 
+/** Yellow callout for a value that was pre-filled from an ambiguous source. */
+function ConfirmCallout({
+  reason,
+  disabled,
+  onConfirm,
+}: {
+  reason: string
+  disabled: boolean
+  onConfirm: () => void
+}) {
+  return (
+    <HStack
+      colorPalette="yellow"
+      bg="colorPalette.subtle"
+      borderWidth="1px"
+      borderColor="colorPalette.emphasized"
+      borderRadius="l2"
+      px="3"
+      py="2"
+      gap="3"
+      align="flex-start"
+      w="full"
+    >
+      <Box color="colorPalette.fg" pt="0.5">
+        <AlertTriangle size={16} />
+      </Box>
+      <Text fontSize="sm" flex="1">
+        <b>Needs confirmation.</b> {reason}
+      </Text>
+      <Button size="xs" colorPalette="brand" disabled={disabled} onClick={onConfirm}>
+        <Check /> Confirm
+      </Button>
+    </HStack>
+  )
+}
+
 function Section({
   title,
   hint,
@@ -80,12 +117,18 @@ function Section({
 export function CaseDetailsPage() {
   const c = useCurrentCase()
   const update = useCaseStore((s) => s.updateMetadata)
-  const applyLims = useCaseStore((s) => s.applyLimsOrder)
+  const fetchFromLims = useCaseStore((s) => s.fetchLims)
+  const confirm = useCaseStore((s) => s.confirmField)
   const [fetching, setFetching] = useState(false)
   const m = c.metadata
   // Highlight required fields only once processing is actually waiting for them.
   const waiting = c.processing.steps.interpretation === 'waiting'
-  const missing = waiting ? missingRequiredFields(m) : []
+  const blockers = interpretationBlockers(m)
+  const missing: RequiredField[] = waiting
+    ? blockers.filter((b) => b.reason === 'missing').map((b) => b.field)
+    : []
+  const unconfirmed = blockers.filter((b) => b.reason === 'unconfirmed').map((b) => b.field)
+  const mapping = mapDiagnosisToOncoTree(m.diagnosisCode)
   const locked = c.report.status === 'signed'
 
   const text = (key: Key, label: string, opts: { type?: string; placeholder?: string } = {}) => (
@@ -111,7 +154,14 @@ export function CaseDetailsPage() {
   const fetchLims = async () => {
     setFetching(true)
     try {
-      applyLims(c.id, await services.lims.fetchOrder(m.sampleId))
+      const result = await fetchFromLims(c.id)
+      if (result === 'not-found')
+        toaster.create({
+          type: 'warning',
+          title: `No LIMS order found for ${m.sampleId}`,
+          description: 'Fill in the fields manually.',
+          duration: 5000,
+        })
     } finally {
       setFetching(false)
     }
@@ -140,6 +190,7 @@ export function CaseDetailsPage() {
                   <OriginBadge origin={m.origin.tumorType} />
                 </Field.Label>
                 <OncoTreeCombobox
+                  key={m.tumorType?.code ?? 'none'}
                   value={m.tumorType}
                   invalid={missing.includes('tumorType')}
                   disabled={locked}
@@ -152,9 +203,23 @@ export function CaseDetailsPage() {
                     )
                   }
                 />
-                <Field.HelperText>
-                  Diagnosis from the pathology report, coded for evidence lookup.
-                </Field.HelperText>
+                {unconfirmed.includes('tumorType') ? (
+                  <ConfirmCallout
+                    reason={
+                      mapping.confidence === 'ambiguous'
+                        ? `${mapping.reason}. Confirm the suggestion or pick a more specific type.`
+                        : 'Check the pre-filled value.'
+                    }
+                    disabled={locked}
+                    onConfirm={() => confirm(c.id, 'tumorType')}
+                  />
+                ) : (
+                  <Field.HelperText>
+                    {m.origin.tumorType === 'lims' && m.diagnosisCode
+                      ? `Mapped from ${m.diagnosisCode.system} ${m.diagnosisCode.morphology} (${m.diagnosisCode.topography}).`
+                      : 'Diagnosis from the pathology report, coded for evidence lookup.'}
+                  </Field.HelperText>
+                )}
               </Field.Root>
               <Field.Root required invalid={missing.includes('tumorContent')} disabled={locked}>
                 <Field.Label w="full">
@@ -177,14 +242,18 @@ export function CaseDetailsPage() {
                     }}
                   />
                 </InputGroup>
-                <Field.HelperText>1–100%, estimated by the pathologist.</Field.HelperText>
+                <Field.HelperText>
+                  {m.origin.tumorContent === 'lims'
+                    ? 'From the pathology record in the LIMS.'
+                    : '1–100%, estimated by the pathologist.'}
+                </Field.HelperText>
               </Field.Root>
             </SimpleGrid>
           </Section>
 
           <Section
             title="Test order"
-            hint="In a real deployment these fields arrive from the LIMS (HL7 ORM or FHIR ServiceRequest). Values you type are never overwritten."
+            hint="Fetched from the LIMS automatically when the case is created (HL7 ORM or FHIR ServiceRequest in a real deployment). Values you type are never overwritten."
             action={
               <Button
                 size="sm"
@@ -203,7 +272,18 @@ export function CaseDetailsPage() {
               {text('orderingPhysician', 'Ordering physician')}
               {text('specimenType', 'Specimen')}
               {text('collectionDate', 'Collection date', { type: 'date' })}
-              <Box gridColumn={{ md: 'span 2' }}>{text('diagnosis', 'Clinical diagnosis')}</Box>
+              <Stack gridColumn={{ md: 'span 2' }} gap="1.5">
+                {text('diagnosis', 'Clinical diagnosis')}
+                {m.diagnosisCode && (
+                  <Text fontSize="xs" color="fg.muted">
+                    Coded:{' '}
+                    <Mono size="xs" tone="default">
+                      {m.diagnosisCode.system} {m.diagnosisCode.morphology} · {m.diagnosisCode.topography}
+                    </Mono>{' '}
+                    — {m.diagnosisCode.label}
+                  </Text>
+                )}
+              </Stack>
               <Field.Root disabled={locked}>
                 <Field.Label w="full">
                   Panel

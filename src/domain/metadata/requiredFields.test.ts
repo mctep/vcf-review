@@ -1,5 +1,11 @@
 import type { CaseMetadata } from '../types'
-import { canStartInterpretation, missingRequiredFields, waitingMessage } from './requiredFields'
+import {
+  canStartInterpretation,
+  interpretationBlockers,
+  missingRequiredFields,
+  unconfirmedFields,
+  waitingMessage,
+} from './requiredFields'
 
 const base: CaseMetadata = { sampleId: 'S1', referenceGenome: 'GRCh38', assay: 'somatic', origin: {} }
 
@@ -16,9 +22,30 @@ describe('requiredFields', () => {
     expect(canStartInterpretation({ ...meta, tumorContent: 60 })).toBe(true)
   })
 
-  it('builds a readable waiting message', () => {
-    expect(waitingMessage(['tumorType', 'tumorContent'])).toBe(
+  it('blocks on unconfirmed values but ignores confirmation of missing ones', () => {
+    const meta: CaseMetadata = {
+      ...base,
+      tumorType: { code: 'NSCLC', name: 'Non-Small Cell Lung Cancer', tissue: 'Lung' },
+      tumorContent: 35,
+      unconfirmed: ['tumorType'],
+    }
+    expect(unconfirmedFields(meta)).toEqual(['tumorType'])
+    expect(canStartInterpretation(meta)).toBe(false)
+    expect(unconfirmedFields({ ...base, unconfirmed: ['tumorType'] })).toEqual([])
+  })
+
+  it('builds readable waiting messages', () => {
+    expect(waitingMessage(interpretationBlockers(base))).toBe(
       'Waiting for tumor type and tumor content to start interpretation',
     )
+    expect(waitingMessage([{ field: 'tumorType', reason: 'unconfirmed' }])).toBe(
+      'Confirm tumor type to start interpretation',
+    )
+    expect(
+      waitingMessage([
+        { field: 'tumorContent', reason: 'missing' },
+        { field: 'tumorType', reason: 'unconfirmed' },
+      ]),
+    ).toBe('Waiting for tumor content and confirmation of tumor type to start interpretation')
   })
 })

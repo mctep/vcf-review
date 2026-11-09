@@ -2,7 +2,7 @@ import { Box, Button, Flex, HStack, Link, Progress, Spinner, Stack, Text } from 
 import { AlertTriangle, Check, CircleDashed, Clock, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { STEP_LABEL } from '../../domain/labels'
-import { missingRequiredFields, waitingMessage } from '../../domain/metadata/requiredFields'
+import { interpretationBlockers, waitingMessage } from '../../domain/metadata/requiredFields'
 import { PROCESSING_STEPS, type Case, type StepState } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { Eyebrow } from '../../ui'
@@ -44,7 +44,7 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
   const { steps, progress, error, startedAt, finishedAt } = c.processing
   const elapsed = useElapsed(startedAt, finishedAt)
   const waiting = steps.interpretation === 'waiting'
-  const missing = missingRequiredFields(c.metadata)
+  const blockers = interpretationBlockers(c.metadata)
   const failed = c.status === 'failed'
 
   if (c.status !== 'processing' && !failed) return null
@@ -81,14 +81,14 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
             {failed && error
               ? `${STEP_LABEL[error.step]}: ${error.message}`
               : waiting
-                ? waitingMessage(missing)
+                ? waitingMessage(blockers)
                 : `${current ? STEP_LABEL[current] : 'Finishing'}…`}
           </Text>
           <Text fontSize="sm" color="fg.muted">
             {failed
               ? 'Your case and metadata are kept. Retry resumes from the failed step.'
               : waiting
-                ? 'Variants are annotated and ranked. Fill in the required fields to draft interpretations.'
+                ? 'Variants are annotated and ranked — you can already review them. Complete or confirm the required fields to draft interpretations.'
                 : 'You can keep working on this case — fill in metadata while the file is processed.'}
           </Text>
         </Stack>

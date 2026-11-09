@@ -1,4 +1,4 @@
-import { missingRequiredFields, waitingMessage } from '../metadata/requiredFields'
+import { interpretationBlockers, waitingMessage } from '../metadata/requiredFields'
 import type { Case } from '../types'
 
 /**
@@ -31,7 +31,7 @@ export function interpretationBlockReason(c: Case): string | undefined {
         ? 'Processing failed before variants were annotated.'
         : 'Variants are still being annotated, filtered and ranked.'
     case 'waiting':
-      return `${waitingMessage(missingRequiredFields(c.metadata))}.`
+      return `${waitingMessage(interpretationBlockers(c.metadata))}.`
     case 'running':
       return 'AI interpretation is being drafted.'
     case 'failed':

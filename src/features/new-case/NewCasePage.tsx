@@ -85,8 +85,12 @@ export function NewCasePage() {
           <List.Item>The file is uploaded (or fetched from storage) and validated.</List.Item>
           <List.Item>Variants are annotated, filtered and ranked.</List.Item>
           <List.Item>
-            AI interpretation starts once <b>tumor type</b> and <b>tumor content</b> are set — you can enter
-            them right away.
+            The test order is fetched from the LIMS: tumor type is mapped from the diagnosis code and tumor
+            content comes from the pathology record.
+          </List.Item>
+          <List.Item>
+            AI interpretation starts as soon as <b>tumor type</b> and <b>tumor content</b> are known. Missing
+            or ambiguous values wait for you — you can enter them right away.
           </List.Item>
           <List.Item>You review, select variants and sign the report.</List.Item>
         </List.Root>
