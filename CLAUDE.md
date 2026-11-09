@@ -96,6 +96,9 @@ Key rules:
   AI-derived content (classifications, descriptions, flags, analysis details) and the report stay locked until
   `interpretationState(case) === 'done'`. Show the reason with `<InterpretationPending>`.
 - Every user-visible change to a case appends an `AuditEvent`.
+- Report regions that can be quoted in the chat carry `data-section-title` (and `data-section` when the
+  assistant may edit them); see `features/report/SelectionQuote.tsx`. A quote travels with the chat message
+  (`ChatMessage.quote`) to `services.interpretation.chat()`.
 - Features call services only through `services` from `src/services/index.ts`.
 
 ## Routes (HashRouter)
@@ -106,7 +109,7 @@ Key rules:
 | `#/new` | New case: VCF or platform export, from a local file or the remote file browser |
 | `#/case/:id/details` | Processing banner + case metadata |
 | `#/case/:id/variants` | Ranked variant list + variant detail card (available after ranking; AI sections after interpretation) |
-| `#/case/:id/report` | Report draft, assistant chat (`?chat=1` focuses it), sign-off (locked until interpretation is done) |
+| `#/case/:id/report` | Report draft, assistant chat (`?chat=1` focuses it; select report text → "Quote in chat"), sign-off (locked until interpretation is done) |
 | `#/ui` | Design system showcase |
 
 Demo switch: add `?fail=<step>` (`uploading`, `validating`, `annotation`, `filtering`, `interpretation`) to the

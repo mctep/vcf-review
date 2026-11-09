@@ -18,6 +18,7 @@ import {
   type AuditEvent,
   type Case,
   type CaseMetadata,
+  type ChatQuote,
   type InterpretationField,
   type MetadataOrigin,
   type ProcessingStepId,
@@ -63,7 +64,8 @@ interface CaseStore {
   leaveFeedback: (caseId: string, variantId: string, text: string) => void
   setReportSection: (caseId: string, section: ReportSectionId, text: string, actor?: string) => void
   clearHighlight: (caseId: string) => void
-  sendChat: (caseId: string, prompt: string) => Promise<void>
+  /** Sends a message to the report assistant, optionally about a quoted passage of the report. */
+  sendChat: (caseId: string, prompt: string, quote?: ChatQuote) => Promise<void>
   signReport: (caseId: string) => void
 }
 
@@ -479,13 +481,13 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       patchCase(caseId, (x) => ({ ...x, report: { ...x.report, highlighted: undefined } }))
     },
 
-    async sendChat(caseId, prompt) {
+    async sendChat(caseId, prompt, quote) {
       const now = () => new Date().toISOString()
       patchCase(caseId, (x) => ({
         ...x,
-        chat: [...x.chat, { id: newId(), role: 'user', text: prompt, at: now() }],
+        chat: [...x.chat, { id: newId(), role: 'user', text: prompt, quote, at: now() }],
       }))
-      const reply = await services.interpretation.chat(caseId, prompt)
+      const reply = await services.interpretation.chat(caseId, prompt, quote)
       patchCase(caseId, (x) => ({
         ...x,
         chat: [...x.chat, { id: newId(), role: 'assistant', text: reply.text, at: now() }],

@@ -74,6 +74,7 @@ function Section({
       outlineColor="accent.emphasized"
       transition="background 600ms"
       data-section={id}
+      data-section-title={title}
     >
       <HStack justify="space-between">
         <SectionTitle>{title}</SectionTitle>

@@ -206,10 +206,20 @@ export interface AuditEvent {
   message: string
 }
 
+/** A passage of the report the user selected and quoted in the assistant chat. */
+export interface ChatQuote {
+  text: string
+  /** Editable section the passage belongs to; absent for variant tables or multi-section selections. */
+  section?: ReportSectionId
+  /** Visible section name, e.g. "Summary" or "Clinically significant variants". */
+  sectionTitle: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   text: string
+  quote?: ChatQuote
   at: string
 }
 

@@ -1,14 +1,28 @@
 import { Box, Button, HStack, IconButton, Spinner, Stack, Text, Textarea } from '@chakra-ui/react'
 import { Send, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import type { Case } from '../../domain/types'
+import type { Case, ChatQuote } from '../../domain/types'
 import { SUGGESTED_PROMPTS } from '../../mocks/agentReplies'
 import { useCaseStore } from '../../store/caseStore'
 import { Eyebrow } from '../../ui'
 import { IconTile } from '../../ui/IconTile'
+import { QuoteBlock } from './SelectionQuote'
 
-/** Agentic chat that edits the report draft. Replies are canned in the prototype. */
-export function AgentChat({ c, autoFocus }: { c: Case; autoFocus?: boolean }) {
+/**
+ * Agentic chat that edits the report draft. Replies are canned in the prototype.
+ * `quote` is a passage selected in the report; it is sent with the next message.
+ */
+export function AgentChat({
+  c,
+  autoFocus,
+  quote,
+  onQuoteChange,
+}: {
+  c: Case
+  autoFocus?: boolean
+  quote?: ChatQuote
+  onQuoteChange: (quote: ChatQuote | undefined) => void
+}) {
   const send = useCaseStore((s) => s.sendChat)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -20,15 +34,20 @@ export function AgentChat({ c, autoFocus }: { c: Case; autoFocus?: boolean }) {
     if (autoFocus) input.current?.focus()
   }, [autoFocus])
   useEffect(() => {
+    if (quote) input.current?.focus()
+  }, [quote])
+  useEffect(() => {
     end.current?.scrollIntoView({ block: 'nearest' })
   }, [c.chat.length, busy])
 
   const submit = async (prompt: string) => {
     if (!prompt.trim() || busy) return
+    const quoted = quote
     setText('')
+    onQuoteChange(undefined)
     setBusy(true)
     try {
-      await send(c.id, prompt.trim())
+      await send(c.id, prompt.trim(), quoted)
     } finally {
       setBusy(false)
     }
@@ -83,6 +102,11 @@ export function AgentChat({ c, autoFocus }: { c: Case; autoFocus?: boolean }) {
             borderWidth={m.role === 'user' ? 0 : '1px'}
             borderColor="border"
           >
+            {m.quote && (
+              <Box mb="1.5">
+                <QuoteBlock quote={m.quote} inverted={m.role === 'user'} />
+              </Box>
+            )}
             {m.text}
           </Box>
         ))}
@@ -111,6 +135,8 @@ export function AgentChat({ c, autoFocus }: { c: Case; autoFocus?: boolean }) {
         </HStack>
       )}
 
+      {quote && !locked && <QuoteBlock quote={quote} onRemove={() => onQuoteChange(undefined)} />}
+
       <HStack
         as="form"
         gap="2"
@@ -133,7 +159,13 @@ export function AgentChat({ c, autoFocus }: { c: Case; autoFocus?: boolean }) {
           rows={2}
           autoresize
           maxH="8rem"
-          placeholder={locked ? 'Report is signed and locked' : 'e.g. Make the summary shorter'}
+          placeholder={
+            locked
+              ? 'Report is signed and locked'
+              : quote
+                ? 'What should change? e.g. Remove this, Why?'
+                : 'e.g. Make the summary shorter'
+          }
           disabled={locked}
           bg="bg.panel"
           aria-label="Message the assistant"

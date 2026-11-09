@@ -1,5 +1,6 @@
 import { staleInputs } from '../domain/case/interpretation'
 import { ONCOTREE } from '../mocks/oncotree'
+import { buildReport } from '../domain/report/buildReport'
 import { useCaseStore } from './caseStore'
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
@@ -133,6 +134,19 @@ describe('caseStore background processing', () => {
     await settle()
     expect(get(id).metadata.tumorType?.code).toBe('SKCM')
     expect(get(id).processing.steps.interpretation).toBe('waiting')
+  })
+
+  it('sends a quoted passage and applies the edit to that section', async () => {
+    const id = useCaseStore.getState().cases.find((c) => c.metadata.sampleId === 'S26-1187')!.id
+    const before = buildReport(get(id)).sections.summary
+    const passage = before.split(/(?<=\.)\s+/)[1]
+    await useCaseStore
+      .getState()
+      .sendChat(id, 'Remove this', { text: passage, section: 'summary', sectionTitle: 'Summary' })
+    const c = get(id)
+    expect(c.chat.at(-2)?.quote?.text).toBe(passage)
+    expect(c.report.overrides.summary).not.toContain(passage)
+    expect(c.report.highlighted).toBe('summary')
   })
 
   it('does not let LIMS overwrite user-entered values', () => {

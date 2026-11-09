@@ -1,6 +1,6 @@
 import { Button, Grid, HStack, Text } from '@chakra-ui/react'
 import { Copy, Lock } from 'lucide-react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { toaster } from '../../components/ui/toaster'
 import { interpretationState, isInterpretationStale } from '../../domain/case/interpretation'
@@ -13,7 +13,9 @@ import { StaleInterpretationCallout } from '../case/StaleInterpretationCallout'
 import { InterpretationPending } from '../case/InterpretationPending'
 import { AgentChat } from './AgentChat'
 import { ReportDocument } from './ReportDocument'
+import { SelectionQuoteButton } from './SelectionQuote'
 import { SignOffDialog } from './SignOffDialog'
+import type { ChatQuote } from '../../domain/types'
 
 export function ReportPage() {
   const c = useCurrentCase()
@@ -24,6 +26,8 @@ export function ReportPage() {
   const interpreted = interpretationState(c) === 'done'
   const signed = c.report.status === 'signed'
   const settle = useCallback(() => clearHighlight(c.id), [c.id, clearHighlight])
+  const documentRef = useRef<HTMLDivElement>(null)
+  const [quote, setQuote] = useState<ChatQuote>()
 
   const copy = () => {
     navigator.clipboard?.writeText(reportToPlainText(report))
@@ -73,12 +77,16 @@ export function ReportPage() {
             {!signed && (
               <Text fontSize="sm" color="fg.muted">
                 Draft built from {c.selected.length} selected variant{c.selected.length === 1 ? '' : 's'}.
-                Change the selection on the Variants tab or ask the assistant to edit the text.
+                Change the selection on the Variants tab or ask the assistant to edit the text — select a
+                passage to quote it in the chat.
               </Text>
             )}
-            <ReportDocument r={report} highlighted={c.report.highlighted} onSettled={settle} />
+            <div ref={documentRef}>
+              <ReportDocument r={report} highlighted={c.report.highlighted} onSettled={settle} />
+            </div>
+            <SelectionQuoteButton container={documentRef} disabled={signed} onQuote={setQuote} />
           </Grid>
-          <AgentChat c={c} autoFocus={params.get('chat') === '1'} />
+          <AgentChat c={c} autoFocus={params.get('chat') === '1'} quote={quote} onQuoteChange={setQuote} />
         </Grid>
       )}
     </>
