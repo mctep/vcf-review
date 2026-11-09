@@ -210,8 +210,10 @@ All badges are pills (`radius: full`, weight 500). Combine with a clinical palet
 
 ### `statusPill`
 
-Case lifecycle pill. Variant `status`: `processing` (aqua, with spinner), `ready` (brand outline), `review`
-(yellow), `signed` (green), `failed` (red). Component: `<StatusPill status="ready" />`.
+Case lifecycle pill. Variant `status`: `processing` (aqua, with spinner), `needsInput` (orange, pen icon —
+interpretation waits for tumor type / tumor content), `ready` (brand outline), `review` (yellow), `signed` (green),
+`failed` (red). Component: `<StatusPill status={displayStatus(c)} />` — pass the derived display status, not
+`c.status`.
 
 ### `monoNotation`
 

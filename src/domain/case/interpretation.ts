@@ -1,6 +1,6 @@
 import { interpretationBlockers, waitingMessage } from '../metadata/requiredFields'
 import { isStepComplete } from './factory'
-import type { Case, InterpretationContext, InterpretationField } from '../types'
+import type { Case, DisplayStatus, InterpretationContext, InterpretationField } from '../types'
 
 /**
  * What the reviewer can see for a case:
@@ -72,4 +72,9 @@ export function describeInputChanges(c: Case): string {
       return `${f === 'tumorType' ? 'tumor type' : 'tumor content'} ${code(ctx)} → ${code(c.metadata)}`
     })
     .join('; ')
+}
+
+/** Status shown in pills, the worklist and the sidebar: a waiting case "needs input" rather than "processing". */
+export function displayStatus(c: Case): DisplayStatus {
+  return c.status === 'processing' && interpretationState(c) === 'waiting' ? 'needsInput' : c.status
 }

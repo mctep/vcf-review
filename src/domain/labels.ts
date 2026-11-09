@@ -1,15 +1,16 @@
 import type {
   Agreement,
   BiologicalFunction,
-  CaseStatus,
+  DisplayStatus,
   Oncogenicity,
   ProcessingStepId,
   Tier,
   VariantFlag,
 } from './types'
 
-export const STATUS_LABEL: Record<CaseStatus, string> = {
+export const STATUS_LABEL: Record<DisplayStatus, string> = {
   processing: 'Processing',
+  needsInput: 'Needs input',
   ready: 'Ready for review',
   review: 'In review',
   signed: 'Signed',

@@ -1,4 +1,4 @@
-import { createSlotRecipeContext, HStack, Spinner, Text, type HTMLChakraProps } from '@chakra-ui/react'
+import { Box, createSlotRecipeContext, HStack, Spinner, Text, type HTMLChakraProps } from '@chakra-ui/react'
 import {
   ClipboardList,
   FilePlus2,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, useMatch } from 'react-router'
+import { displayStatus } from '../domain/case/interpretation'
 import { useColorMode } from '../components/ui/color-mode'
 import { CURRENT_USER } from '../domain/case/factory'
 import { useCase } from '../store/caseStore'
@@ -37,12 +38,15 @@ function Item({
   children,
   end,
   busy,
+  attention,
 }: {
   to: string
   icon: ReactNode
   children: ReactNode
   end?: boolean
   busy?: boolean
+  /** Orange dot: something on this page waits for the user. */
+  attention?: boolean
 }) {
   const close = useUiStore((s) => s.setMobileNavOpen)
   return (
@@ -53,6 +57,9 @@ function Item({
           {children}
         </Text>
         {busy && <Spinner size="xs" color="aqua.fg" borderWidth="1.5px" />}
+        {attention && (
+          <Box boxSize="2" borderRadius="full" bg="orange.solid" aria-label="Needs input" role="img" />
+        )}
       </NavLink>
     </Nav.Item>
   )
@@ -64,7 +71,8 @@ export function Sidebar() {
   const current = useCase(caseId)
   const openAudit = useUiStore((s) => s.setAuditOpen)
   const { colorMode, toggleColorMode } = useColorMode()
-  const busy = current?.status === 'processing'
+  const status = current && displayStatus(current)
+  const busy = status === 'processing'
 
   return (
     <Nav.Root aria-label="Main">
@@ -88,7 +96,11 @@ export function Sidebar() {
               {current.metadata.sampleId}
             </Text>
           </Nav.GroupLabel>
-          <Item to={`/case/${current.id}/details`} icon={<ClipboardList />}>
+          <Item
+            to={`/case/${current.id}/details`}
+            icon={<ClipboardList />}
+            attention={status === 'needsInput'}
+          >
             Details
           </Item>
           <Item to={`/case/${current.id}/variants`} icon={<Microscope />} busy={busy}>

@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router'
 import { FLAG_LABEL } from '../../domain/labels'
 import type { Case } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
+import { displayStatus } from '../../domain/case/interpretation'
 import { GlassCard, Highlight, PageTitle, StatusPill } from '../../ui'
 import { IconTile } from '../../ui/IconTile'
 
@@ -47,7 +48,7 @@ function Stat({
 }
 
 function caseTarget(c: Case) {
-  return c.status === 'processing' || c.status === 'failed'
+  return c.status === 'processing' || c.status === 'failed' // includes needsInput
     ? 'details'
     : c.status === 'signed'
       ? 'report'
@@ -57,7 +58,8 @@ function caseTarget(c: Case) {
 export function CasesOverviewPage() {
   const cases = useCaseStore((s) => s.cases)
   const navigate = useNavigate()
-  const processing = cases.filter((c) => c.status === 'processing').length
+  const processing = cases.filter((c) => displayStatus(c) === 'processing').length
+  const needsInput = cases.filter((c) => displayStatus(c) === 'needsInput').length
   const awaiting = cases.filter((c) => c.status === 'ready' || c.status === 'review').length
   const signed = cases.filter((c) => c.status === 'signed').length
 
@@ -85,7 +87,7 @@ export function CasesOverviewPage() {
           icon={<Activity size={18} />}
           label="Processing"
           value={processing}
-          hint="Running in background"
+          hint={needsInput ? `${needsInput} waiting for your input` : 'Running in background'}
         />
         <Stat
           icon={<Hourglass size={18} />}
@@ -164,8 +166,8 @@ export function CasesOverviewPage() {
                   </Table.Cell>
                   <Table.Cell minW="11rem">
                     <Stack gap="1.5">
-                      <StatusPill status={c.status} alignSelf="flex-start" />
-                      {c.status === 'processing' && (
+                      <StatusPill status={displayStatus(c)} alignSelf="flex-start" />
+                      {displayStatus(c) === 'processing' && (
                         <Progress.Root
                           value={c.processing.progress}
                           size="xs"

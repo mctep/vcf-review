@@ -22,7 +22,7 @@ const STEP_PALETTE: Record<StepState, string> = {
   running: 'aqua',
   done: 'brand',
   skipped: 'ink',
-  waiting: 'yellow',
+  waiting: 'orange',
   failed: 'red',
 }
 
@@ -57,7 +57,7 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
 
   if (c.status !== 'processing' && !failed) return null
 
-  const palette = failed ? 'red' : waiting ? 'yellow' : 'aqua'
+  const palette = failed ? 'red' : waiting ? 'orange' : 'aqua'
   const current = PROCESSING_STEPS.find(
     (s) => steps[s] === 'running' || steps[s] === 'waiting' || steps[s] === 'failed',
   )
@@ -175,7 +175,7 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
             </Text>
           )}
           {waiting && (
-            <HStack mt="4" gap="2" fontSize="sm" color="yellow.fg">
+            <HStack mt="4" gap="2" fontSize="sm" color="orange.fg">
               <AlertTriangle size={16} />
               <Text>
                 Interpretation depends on the tumor type (evidence levels, tiers) and tumor content

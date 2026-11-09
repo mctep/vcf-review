@@ -1,7 +1,7 @@
 import { Badge, Box, Button, Grid, HStack, SimpleGrid, Stack, Text } from '@chakra-ui/react'
 import { ArrowRight, MessageSquarePlus, Sparkles } from 'lucide-react'
 import { useColorMode } from '../components/ui/color-mode'
-import type { CaseStatus } from '../domain/types'
+import type { DisplayStatus } from '../domain/types'
 import {
   CitationLink,
   Eyebrow,
@@ -31,7 +31,7 @@ const CLINICAL = [
   'agreementMedium',
   'agreementLow',
 ]
-const STATUSES: CaseStatus[] = ['processing', 'ready', 'review', 'signed', 'failed']
+const STATUSES: DisplayStatus[] = ['processing', 'needsInput', 'ready', 'review', 'signed', 'failed']
 const SURFACES = ['bg', 'bg.panel', 'bg.subtle', 'bg.muted', 'bg.emphasized', 'bg.glass', 'bg.selected']
 const TEXT_STYLES = [
   'display',

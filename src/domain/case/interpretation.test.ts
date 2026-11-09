@@ -4,6 +4,7 @@ import type { Case } from '../types'
 import { createCase, stepsWith } from './factory'
 import {
   describeInputChanges,
+  displayStatus,
   interpretationBlockReason,
   interpretationState,
   isAnnotated,
@@ -88,5 +89,14 @@ describe('staleInputs', () => {
       report: { ...c.report, status: 'signed' as const },
     }
     expect(staleInputs(signed)).toEqual([])
+  })
+})
+
+describe('displayStatus', () => {
+  it('shows a waiting case as needing input, not processing', () => {
+    expect(displayStatus({ ...annotated('waiting'), status: 'processing' })).toBe('needsInput')
+    expect(displayStatus({ ...annotated('running'), status: 'processing' })).toBe('processing')
+    expect(displayStatus(fresh())).toBe('processing')
+    expect(displayStatus({ ...annotated('waiting'), status: 'failed' })).toBe('failed')
   })
 })

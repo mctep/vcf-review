@@ -2,6 +2,7 @@ import { Flex, HStack, Stack, Text } from '@chakra-ui/react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import type { Case } from '../../domain/types'
+import { displayStatus } from '../../domain/case/interpretation'
 import { PageTitle, StatusPill } from '../../ui'
 
 const fmtDate = (iso: string) =>
@@ -58,7 +59,7 @@ export function CaseHeader({ c, actions }: { c: Case; actions?: ReactNode }) {
             <Text as="span" color="fg.subtle">
               ·
             </Text>
-            <StatusPill status={c.status} />
+            <StatusPill status={displayStatus(c)} />
           </HStack>
         </Stack>
         {actions && (

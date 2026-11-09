@@ -3,23 +3,36 @@ import { Menu } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { toaster, Toaster } from '../components/ui/toaster'
-import type { CaseStatus } from '../domain/types'
+import { displayStatus } from '../domain/case/interpretation'
+import { waitingMessage, interpretationBlockers } from '../domain/metadata/requiredFields'
+import type { DisplayStatus } from '../domain/types'
 import { AuditDrawer } from '../features/audit/AuditDrawer'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import { Logo } from './Logo'
 import { Sidebar } from './Sidebar'
 
-/** Notifies when a background job finishes or fails, wherever the user is. */
+/** Notifies when a background job finishes, fails or starts waiting for input, wherever the user is. */
 function useProcessingNotifications() {
   const navigate = useNavigate()
-  const previous = useRef<Record<string, CaseStatus>>({})
+  const previous = useRef<Record<string, DisplayStatus>>({})
   useEffect(() => {
-    previous.current = Object.fromEntries(useCaseStore.getState().cases.map((c) => [c.id, c.status]))
+    previous.current = Object.fromEntries(useCaseStore.getState().cases.map((c) => [c.id, displayStatus(c)]))
     return useCaseStore.subscribe((state) => {
       for (const c of state.cases) {
         const before = previous.current[c.id]
-        if (before === 'processing' && c.status === 'ready') {
+        const now = displayStatus(c)
+        const viewing = window.location.hash.includes(c.id)
+        if (before === 'processing' && now === 'needsInput' && !viewing) {
+          toaster.create({
+            type: 'warning',
+            title: `Case ${c.metadata.sampleId} needs input`,
+            description: `Variants are ranked. ${waitingMessage(interpretationBlockers(c.metadata))}.`,
+            action: { label: 'Open', onClick: () => navigate(`/case/${c.id}/details`) },
+            duration: 8000,
+          })
+        }
+        if (before === 'processing' && now === 'ready') {
           toaster.create({
             type: 'success',
             title: `Case ${c.metadata.sampleId} is ready for review`,
@@ -28,7 +41,7 @@ function useProcessingNotifications() {
             duration: 8000,
           })
         }
-        if (before === 'processing' && c.status === 'failed') {
+        if (before === 'processing' && now === 'failed') {
           toaster.create({
             type: 'error',
             title: `Processing failed for ${c.metadata.sampleId}`,
@@ -37,7 +50,7 @@ function useProcessingNotifications() {
             duration: 10000,
           })
         }
-        previous.current[c.id] = c.status
+        previous.current[c.id] = now
       }
     })
   }, [navigate])

@@ -86,6 +86,9 @@ Key rules:
   `<StaleInterpretationCallout>` lets the reviewer re-run it (confirmation dialog; reviewer edits are discarded,
   selection kept) or keep it. Sign-off is blocked while the draft is stale and requires an explicit confirmation
   of the interpretation context.
+- Show case status with `displayStatus(c)` (`domain/case/interpretation.ts`), not `c.status`: a processing case
+  whose interpretation waits for metadata is shown as `needsInput` (orange pill, dot on the Details nav item,
+  a toast when it happens in the background).
 - LIMS never overwrites values with `origin: 'user'` or `origin: 'platform'`; a platform import never overwrites
   `origin: 'user'`.
 - What is visible when is decided by `domain/case/interpretation.ts`: annotated variants (gene, HGVS, VAF,

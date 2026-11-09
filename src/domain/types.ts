@@ -2,6 +2,12 @@
 
 export type CaseStatus = 'processing' | 'ready' | 'review' | 'signed' | 'failed'
 
+/**
+ * Status shown to people. Same as `CaseStatus`, plus `needsInput`: processing is finished up to interpretation,
+ * which waits for missing or unconfirmed tumor type / tumor content. Derived by `displayStatus()`.
+ */
+export type DisplayStatus = CaseStatus | 'needsInput'
+
 // ── Source file ──────────────────────────────────────────────────────
 
 export type ConnectionType = 'nfs' | 's3'

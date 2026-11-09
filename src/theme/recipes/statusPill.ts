@@ -19,6 +19,8 @@ export const statusPillRecipe = defineRecipe({
   variants: {
     status: {
       processing: { color: 'aqua.fg', borderColor: 'aqua.emphasized', bg: 'aqua.subtle' },
+      /** Interpretation waits for tumor type / tumor content from a person. */
+      needsInput: { color: 'orange.fg', borderColor: 'orange.emphasized', bg: 'orange.subtle' },
       ready: { color: 'brand.fg', borderColor: 'brand.emphasized', bg: 'bg.panel' },
       review: { color: 'yellow.fg', borderColor: 'yellow.emphasized', bg: 'yellow.subtle' },
       signed: { color: 'green.fg', borderColor: 'green.emphasized', bg: 'green.subtle' },
