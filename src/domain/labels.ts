@@ -12,7 +12,6 @@ export const STATUS_LABEL: Record<DisplayStatus, string> = {
   processing: 'Processing',
   needsInput: 'Needs input',
   ready: 'Ready for review',
-  review: 'In review',
   signed: 'Signed',
   failed: 'Failed',
 }

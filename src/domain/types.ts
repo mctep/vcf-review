@@ -1,6 +1,6 @@
 /** Core domain model. Pure types — no React, no Chakra. */
 
-export type CaseStatus = 'processing' | 'ready' | 'review' | 'signed' | 'failed'
+export type CaseStatus = 'processing' | 'ready' | 'signed' | 'failed'
 
 /**
  * Status shown to people. Same as `CaseStatus`, plus `needsInput`: processing is finished up to interpretation,

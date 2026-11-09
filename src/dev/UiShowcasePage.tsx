@@ -31,7 +31,7 @@ const CLINICAL = [
   'agreementMedium',
   'agreementLow',
 ]
-const STATUSES: DisplayStatus[] = ['processing', 'needsInput', 'ready', 'review', 'signed', 'failed']
+const STATUSES: DisplayStatus[] = ['processing', 'needsInput', 'ready', 'signed', 'failed']
 const SURFACES = ['bg', 'bg.panel', 'bg.subtle', 'bg.muted', 'bg.emphasized', 'bg.glass', 'bg.selected']
 const TEXT_STYLES = [
   'display',

@@ -62,7 +62,7 @@ describe('caseStore background processing', () => {
 
     useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUSC') })
     await settle()
-    expect(get(id).status).toBe('review')
+    expect(get(id).status).toBe('ready')
     expect(staleInputs(get(id))).toEqual(['tumorType'])
     expect(get(id).audit.some((e) => e.message.includes('tumor type LUAD → LUSC'))).toBe(true)
 
@@ -115,7 +115,7 @@ describe('caseStore background processing', () => {
     expect(c.metadata.origin.patientId).toBe('lims')
   })
 
-  it('moves a ready case to review on the first selection change and signs it', () => {
+  it('changes the selection of a ready case and signs it', () => {
     const id = useCaseStore.getState().cases.find((c) => c.metadata.sampleId === 'S26-1187')!.id
     useCaseStore.getState().toggleVariant(id, 'atm-vus')
     expect(get(id).selected).not.toContain('atm-vus')

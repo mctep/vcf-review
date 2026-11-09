@@ -59,7 +59,7 @@ export function CasesOverviewPage() {
   const navigate = useNavigate()
   const processing = cases.filter((c) => displayStatus(c) === 'processing').length
   const needsInput = cases.filter((c) => displayStatus(c) === 'needsInput').length
-  const awaiting = cases.filter((c) => c.status === 'ready' || c.status === 'review').length
+  const awaiting = cases.filter((c) => c.status === 'ready').length
   const signed = cases.filter((c) => c.status === 'signed').length
 
   return (

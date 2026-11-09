@@ -21,7 +21,7 @@ export function seedCases(): Case[] {
     id: '4f2a9c1e-7b3d-4e8a-9c61-2d5f0b8e3a17',
     createdAt: iso(95),
     createdBy: 'Dr. A. Weber',
-    status: 'review',
+    status: 'ready',
     source: {
       kind: 'remote',
       connectionId: 'nfs-runs',

@@ -164,9 +164,6 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     jobs.set(id, cancel)
   }
 
-  /** Marks a ready case as "in review" on the first reviewer action. */
-  const touchReview = (c: Case): Case => (c.status === 'ready' ? { ...c, status: 'review' } : c)
-
   return {
     cases: seedCases(),
 
@@ -327,12 +324,10 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       if (!c || c.report.status === 'signed') return
       const included = c.selected.includes(variantId)
       const v = c.variants.find((x) => x.id === variantId)
-      patchCase(caseId, (x) =>
-        touchReview({
-          ...x,
-          selected: included ? x.selected.filter((id) => id !== variantId) : [...x.selected, variantId],
-        }),
-      )
+      patchCase(caseId, (x) => ({
+        ...x,
+        selected: included ? x.selected.filter((id) => id !== variantId) : [...x.selected, variantId],
+      }))
       log(
         caseId,
         auditEvent(
@@ -345,7 +340,7 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     setSelection(caseId, variantIds) {
       const c = getCase(caseId)
       if (!c || c.report.status === 'signed') return
-      patchCase(caseId, (x) => touchReview({ ...x, selected: variantIds }))
+      patchCase(caseId, (x) => ({ ...x, selected: variantIds }))
       log(
         caseId,
         auditEvent(
@@ -360,7 +355,7 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     editDescription(caseId, variantId, field, text) {
       const c = getCase(caseId)
       const v = c?.variants.find((x) => x.id === variantId)
-      patchCase(caseId, (x) => touchReview({ ...x, edits: { ...x.edits, [`${variantId}:${field}`]: text } }))
+      patchCase(caseId, (x) => ({ ...x, edits: { ...x.edits, [`${variantId}:${field}`]: text } }))
       log(
         caseId,
         auditEvent(
@@ -376,16 +371,10 @@ export const useCaseStore = create<CaseStore>((set, get) => {
     },
 
     setReportSection(caseId, section, text, actor = CURRENT_USER) {
-      patchCase(caseId, (x) =>
-        touchReview({
-          ...x,
-          report: {
-            ...x.report,
-            overrides: { ...x.report.overrides, [section]: text },
-            highlighted: section,
-          },
-        }),
-      )
+      patchCase(caseId, (x) => ({
+        ...x,
+        report: { ...x.report, overrides: { ...x.report.overrides, [section]: text }, highlighted: section },
+      }))
       log(caseId, auditEvent('report.edited', `Report section "${section}" updated`, actor))
     },
 
