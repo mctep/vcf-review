@@ -1,7 +1,6 @@
 import { Box, Button, Flex, HStack, Link, Progress, Spinner, Stack, Text } from '@chakra-ui/react'
 import { AlertTriangle, Check, CircleDashed, Clock, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { sourceFormat } from '../../domain/case/factory'
 import { STEP_LABEL } from '../../domain/labels'
 import { interpretationBlockers, waitingMessage } from '../../domain/metadata/requiredFields'
 import { PROCESSING_STEPS, type Case, type StepState } from '../../domain/types'
@@ -12,7 +11,6 @@ const STEP_ICON: Record<StepState, React.ReactNode> = {
   pending: <CircleDashed size={16} />,
   running: <Spinner size="xs" borderWidth="2px" />,
   done: <Check size={16} />,
-  skipped: <Check size={16} />,
   waiting: <Clock size={16} />,
   failed: <X size={16} />,
 }
@@ -21,7 +19,6 @@ const STEP_PALETTE: Record<StepState, string> = {
   pending: 'ink',
   running: 'aqua',
   done: 'brand',
-  skipped: 'ink',
   waiting: 'orange',
   failed: 'red',
 }
@@ -49,11 +46,6 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
   const waiting = steps.interpretation === 'waiting'
   const blockers = interpretationBlockers(c.metadata)
   const failed = c.status === 'failed'
-  const isExport = sourceFormat(c.source) === 'platform-export'
-  // Platform exports skip annotation and ranking; before that is known, hide those steps for exports too.
-  const visibleSteps = PROCESSING_STEPS.filter(
-    (s) => steps[s] !== 'skipped' && !(isExport && (s === 'annotation' || s === 'filtering')),
-  )
 
   if (c.status !== 'processing' && !failed) return null
 
@@ -97,9 +89,7 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
               ? 'Your case and metadata are kept. Retry resumes from the failed step.'
               : waiting
                 ? 'Variants are annotated and ranked — you can already review them. Complete or confirm the required fields to draft interpretations.'
-                : isExport
-                  ? 'Importing the case. Variants are already annotated and ranked on the analysis platform.'
-                  : 'You can keep working on this case — fill in metadata while the file is processed.'}
+                : 'You can keep working on this case — fill in metadata while the file is processed.'}
           </Text>
         </Stack>
         <HStack gap="3" flexShrink={0}>
@@ -139,7 +129,7 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
             direction={{ base: 'column', md: 'row' }}
             listStyleType="none"
           >
-            {visibleSteps.map((s, i) => (
+            {PROCESSING_STEPS.map((s, i) => (
               <HStack as="li" key={s} flex="1" gap="2" colorPalette={STEP_PALETTE[steps[s]]} minW="0">
                 <Flex
                   boxSize="7"
@@ -162,18 +152,12 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
                 >
                   {STEP_LABEL[s]}
                 </Text>
-                {i < visibleSteps.length - 1 && (
+                {i < PROCESSING_STEPS.length - 1 && (
                   <Box display={{ base: 'none', md: 'block' }} flex="1" h="1px" bg="border" mx="2" />
                 )}
               </HStack>
             ))}
           </Flex>
-          {isExport && (
-            <Text mt="3" fontSize="xs" color="fg.subtle">
-              Analysis platform export — variants were annotated and ranked on the platform, so those steps
-              are skipped here.
-            </Text>
-          )}
           {waiting && (
             <HStack mt="4" gap="2" fontSize="sm" color="orange.fg">
               <AlertTriangle size={16} />

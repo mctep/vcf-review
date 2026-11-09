@@ -1,5 +1,4 @@
 import { interpretationBlockers, waitingMessage } from '../metadata/requiredFields'
-import { isStepComplete } from './factory'
 import type { Case, DisplayStatus, InterpretationContext, InterpretationField } from '../types'
 
 /**
@@ -10,7 +9,7 @@ import type { Case, DisplayStatus, InterpretationContext, InterpretationField } 
 export type InterpretationState = 'not-annotated' | 'waiting' | 'running' | 'failed' | 'done'
 
 export function isAnnotated(c: Case): boolean {
-  return isStepComplete(c.processing.steps.filtering) && c.variants.length > 0
+  return c.processing.steps.filtering === 'done' && c.variants.length > 0
 }
 
 export function interpretationState(c: Case): InterpretationState {

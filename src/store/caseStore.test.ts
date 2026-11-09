@@ -105,37 +105,6 @@ describe('caseStore background processing', () => {
     expect(get(id).audit.at(-1)?.message).toMatch(/kept despite input change \(tumor content 60% → 55%\)/)
   })
 
-  it('imports a platform export with its case context and no LIMS lookup', async () => {
-    const id = useCaseStore
-      .getState()
-      .createCase({ kind: 'local', fileName: 'S26-1220_lung_case-export.json', sizeBytes: 100 })
-    await settle()
-    const c = get(id)
-    expect(c.processing.steps.annotation).toBe('skipped')
-    expect(c.processing.steps.filtering).toBe('skipped')
-    expect(c.metadata.tumorType?.code).toBe('LUAD')
-    expect(c.metadata.tumorContent).toBe(50)
-    expect(c.metadata.origin.tumorType).toBe('platform')
-    expect(c.processing.steps.interpretation).toBe('done')
-    expect(c.status).toBe('ready')
-    expect(c.audit.some((e) => e.actor === 'LIMS')).toBe(false)
-    expect(c.audit.some((e) => e.message.startsWith('Case context imported from'))).toBe(true)
-
-    // A manual LIMS fetch never overwrites values the platform used.
-    useCaseStore.getState().applyLimsOrder(id, { tumorContent: 80, patientId: 'P9' })
-    expect(get(id).metadata.tumorContent).toBe(50)
-    expect(get(id).metadata.patientId).toBe('P9')
-  })
-
-  it('waits for manual input when the export lacks tumor content', async () => {
-    const id = useCaseStore
-      .getState()
-      .createCase({ kind: 'local', fileName: 'S26-1221_melanoma_case-export.json', sizeBytes: 100 })
-    await settle()
-    expect(get(id).metadata.tumorType?.code).toBe('SKCM')
-    expect(get(id).processing.steps.interpretation).toBe('waiting')
-  })
-
   it('sends a quoted passage and applies the edit to that section', async () => {
     const id = useCaseStore.getState().cases.find((c) => c.metadata.sampleId === 'S26-1187')!.id
     const before = buildReport(get(id)).sections.summary

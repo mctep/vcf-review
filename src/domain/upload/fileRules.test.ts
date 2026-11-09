@@ -1,11 +1,4 @@
-import {
-  buildFullPath,
-  checkInputFile,
-  detectInputFormat,
-  formatBytes,
-  isVcfFileName,
-  joinPath,
-} from './fileRules'
+import { buildFullPath, checkVcfFile, formatBytes, isVcfFileName, joinPath } from './fileRules'
 
 describe('fileRules', () => {
   it('accepts .vcf and .vcf.gz only', () => {
@@ -15,19 +8,11 @@ describe('fileRules', () => {
     expect(isVcfFileName('S1.vcf.gz.tbi')).toBe(false)
   })
 
-  it('detects VCFs and analysis platform exports', () => {
-    expect(detectInputFormat('S1.vcf.gz')).toBe('vcf')
-    expect(detectInputFormat('S26-1220_case-export.JSON')).toBe('platform-export')
-    expect(detectInputFormat('S1_export.xml')).toBe('platform-export')
-    expect(detectInputFormat('S1.bam')).toBeNull()
-    expect(checkInputFile('S1.json', 10)).toEqual({ ok: true })
-  })
-
   it('rejects empty and oversized files', () => {
-    expect(checkInputFile('a.vcf', 0)).toEqual({ ok: false, reason: 'The file is empty.' })
-    expect(checkInputFile('a.vcf', 3 * 1024 ** 3).ok).toBe(false)
-    expect(checkInputFile('a.txt', 10).ok).toBe(false)
-    expect(checkInputFile('a.vcf.gz', 10)).toEqual({ ok: true })
+    expect(checkVcfFile('a.vcf', 0)).toEqual({ ok: false, reason: 'The file is empty.' })
+    expect(checkVcfFile('a.vcf', 3 * 1024 ** 3).ok).toBe(false)
+    expect(checkVcfFile('a.txt', 10).ok).toBe(false)
+    expect(checkVcfFile('a.vcf.gz', 10)).toEqual({ ok: true })
   })
 
   it('builds NFS and S3 locations', () => {

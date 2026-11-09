@@ -5,13 +5,11 @@ Built with React, TypeScript and Chakra UI v3. **All data is synthetic — not f
 
 ## What it shows
 
-1. **New case.** Pick a VCF or a case export from an existing tertiary analysis platform — from a local file or
-   from a pre-configured NFS mount / S3 bucket through a file browser. The case is created right away.
-2. **Background processing.** VCF: uploading → validating → annotation → filtering & ranking → AI interpretation,
-   with the case context fetched from the LIMS. Platform export: the ranked variants and the case context
-   (tumor type, tumor content) are imported as they are — no LIMS connection needed.
-   Keep working while it runs: fill in metadata, browse other cases. Interpretation waits for the fields it
-   depends on (tumor type, tumor content).
+1. **New case.** Pick a VCF from a local file or from a pre-configured NFS mount / S3 bucket through a file browser.
+   The case is created right away.
+2. **Background processing.** Uploading → validating → annotation → filtering & ranking → AI interpretation.
+   Keep working while it runs: fill in metadata, fetch the test order from the LIMS, browse other cases.
+   Interpretation waits for the fields it depends on (tumor type, tumor content).
 3. **Variant review.** Ranked variant list, classifications (oncogenicity, AMP/ASCO/CAP tier, biological
    function) with criteria and evidence, AI-drafted gene and variant descriptions with inline citations and
    traceability, source agreement, analysis details, feedback.

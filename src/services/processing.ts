@@ -1,16 +1,10 @@
-import { sampleIdFromFileName, sourceFormat } from '../domain/case/factory'
 import type { Funnel, ProcessingStepId, StepState, Variant, VcfSource } from '../domain/types'
-import { platformExportFor, type PlatformExportInfo } from '../mocks/platformExports'
 import { VARIANT_SETS, variantSetForFile } from '../mocks/variants'
-
-export type { PlatformCaseContext, PlatformExportInfo } from '../mocks/platformExports'
 import { STEP_SPEED } from './delay'
 
 export interface AnnotationResult {
   variants: Variant[]
   funnel: Funnel
-  /** Present for platform exports: the platform label and the case context recorded there. */
-  imported?: PlatformExportInfo
 }
 
 export interface ProcessingHandlers {
@@ -20,9 +14,8 @@ export interface ProcessingHandlers {
 
 export interface ProcessingService {
   /**
-   * VCF: upload → validate → annotate → filter & rank. Platform export: upload → validate (schema) → import;
-   * annotation and ranking are reported as `skipped` because the platform already did them.
-   * Resolves with the ranked variants. `fromStep` resumes a retried job. Returns a cancel function.
+   * Upload → validate → annotate → filter & rank. Resolves with the ranked variants.
+   * `fromStep` resumes a retried job. Returns a cancel function.
    */
   runPipeline(
     caseId: string,
@@ -42,10 +35,6 @@ const DURATION_MS: Record<ProcessingStepId, number> = {
   annotation: 4200,
   filtering: 2600,
   interpretation: 3800,
-}
-
-const EXPORT_ERRORS: Partial<Record<ProcessingStepId, string>> = {
-  validating: 'Export schema version 2.1 is not supported (expected 3.x).',
 }
 
 const ERRORS: Partial<Record<ProcessingStepId, string>> = {
@@ -79,7 +68,6 @@ function runSteps(
   handlers: ProcessingHandlers,
   onDone: () => void,
   durations: Partial<Record<ProcessingStepId, number>> = {},
-  errors: Partial<Record<ProcessingStepId, string>> = ERRORS,
 ): () => void {
   let cancelled = false
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -94,7 +82,7 @@ function runSteps(
         if (cancelled) return
         if (shouldFail(caseId, step)) {
           handlers.onStep(step, 'failed')
-          handlers.onError(step, errors[step] ?? ERRORS[step] ?? 'Unexpected error.')
+          handlers.onError(step, ERRORS[step] ?? 'Unexpected error.')
           return
         }
         handlers.onStep(step, 'done')
@@ -112,32 +100,19 @@ function runSteps(
 
 export const mockProcessing: ProcessingService = {
   runPipeline(caseId, source, handlers, fromStep) {
-    const isExport = sourceFormat(source) === 'platform-export'
-    const pipeline = isExport ? PIPELINE.slice(0, 2) : PIPELINE
-    const start = fromStep ? pipeline.indexOf(fromStep) : 0
-    const steps = pipeline.slice(Math.max(start, 0))
-    // Remote files are fetched server-side, and exports are small, so "uploading" is quicker.
-    const durations = {
-      ...(source.kind === 'remote' || isExport ? { uploading: 900 } : {}),
-      ...(isExport ? { validating: 1400 } : {}),
-    }
+    const start = fromStep ? PIPELINE.indexOf(fromStep) : 0
+    const steps = PIPELINE.slice(Math.max(start, 0))
+    // Remote files are fetched server-side, so "uploading" is quicker.
+    const durations = source.kind === 'remote' ? { uploading: 900 } : {}
     return runSteps(
       caseId,
       steps,
       handlers,
       () => {
         const set = VARIANT_SETS[variantSetForFile(source.fileName)]
-        if (!isExport) return handlers.onDone({ variants: set.variants, funnel: set.funnel })
-        handlers.onStep('annotation', 'skipped')
-        handlers.onStep('filtering', 'skipped')
-        handlers.onDone({
-          variants: set.variants,
-          funnel: set.funnel,
-          imported: platformExportFor(sampleIdFromFileName(source.fileName)),
-        })
+        handlers.onDone({ variants: set.variants, funnel: set.funnel })
       },
       durations,
-      isExport ? { ...ERRORS, ...EXPORT_ERRORS } : ERRORS,
     )
   },
   runInterpretation(caseId, handlers) {

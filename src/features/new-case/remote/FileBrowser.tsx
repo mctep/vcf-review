@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react'
 import { Cloud, File, FileCode2, Folder, HardDrive, Lock, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
-import { buildFullPath, formatBytes, isAcceptedFileName } from '../../../domain/upload/fileRules'
+import { buildFullPath, formatBytes, isVcfFileName } from '../../../domain/upload/fileRules'
 import type { VcfSource } from '../../../domain/types'
 import { services } from '../../../services'
 import { AccessDeniedError, type FsEntry, type StorageConnection } from '../../../services/storage'
@@ -96,7 +96,7 @@ export function FileBrowser({ value, onChange }: Props) {
   const select = (entry: FsEntry) => {
     if (!conn) return
     if (entry.type === 'folder') return open(path ? `${path}/${entry.name}` : entry.name)
-    if (!isAcceptedFileName(entry.name)) return
+    if (!isVcfFileName(entry.name)) return
     const rel = path ? `${path}/${entry.name}` : entry.name
     onChange({
       kind: 'remote',
@@ -268,7 +268,7 @@ export function FileBrowser({ value, onChange }: Props) {
           {listing.state === 'ready' &&
             visible.map((entry) => {
               const isFolder = entry.type === 'folder'
-              const selectable = isFolder || isAcceptedFileName(entry.name)
+              const selectable = isFolder || isVcfFileName(entry.name)
               const rel = path ? `${path}/${entry.name}` : entry.name
               const selected =
                 value?.kind === 'remote' &&
@@ -281,11 +281,7 @@ export function FileBrowser({ value, onChange }: Props) {
                   tabIndex={selectable ? 0 : -1}
                   aria-selected={!!selected}
                   aria-disabled={!selectable}
-                  title={
-                    !selectable
-                      ? 'Only VCF files (.vcf, .vcf.gz) and platform exports (.json, .xml) can be selected'
-                      : undefined
-                  }
+                  title={!selectable ? 'Only .vcf and .vcf.gz files can be selected' : undefined}
                   onClick={() => (isFolder ? undefined : select(entry))}
                   onDoubleClick={() => isFolder && select(entry)}
                   onKeyDown={(e: KeyboardEvent) => onRowKey(e, entry)}

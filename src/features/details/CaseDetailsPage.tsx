@@ -15,11 +15,11 @@ import {
 } from '@chakra-ui/react'
 import { AlertTriangle, Check, DatabaseZap, FileCode2, Lock } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { sourceFormat, sourceLocation } from '../../domain/case/factory'
+import { sourceLocation } from '../../domain/case/factory'
 import { interpretationBlockers, type RequiredField } from '../../domain/metadata/requiredFields'
 import { mapDiagnosisToOncoTree } from '../../domain/metadata/tumorTypeMapping'
 import { toaster } from '../../components/ui/toaster'
-import { formatBytes, INPUT_FORMAT_LABEL } from '../../domain/upload/fileRules'
+import { formatBytes } from '../../domain/upload/fileRules'
 import type { CaseMetadata, MetadataOrigin } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { InfoTip, Mono, SectionTitle } from '../../ui'
@@ -33,7 +33,6 @@ type Key = keyof Omit<CaseMetadata, 'origin'>
 
 const ORIGIN_BADGE: Record<MetadataOrigin, { label: string; palette: string }> = {
   vcf: { label: 'from VCF', palette: 'aqua' },
-  platform: { label: 'from export', palette: 'accent' },
   lims: { label: 'from LIMS', palette: 'brand' },
   user: { label: 'entered', palette: 'ink' },
 }
@@ -132,7 +131,6 @@ export function CaseDetailsPage() {
   const unconfirmed = blockers.filter((b) => b.reason === 'unconfirmed').map((b) => b.field)
   const mapping = mapDiagnosisToOncoTree(m.diagnosisCode)
   const locked = c.report.status === 'signed'
-  const isExport = sourceFormat(c.source) === 'platform-export'
 
   const text = (key: Key, label: string, opts: { type?: string; placeholder?: string } = {}) => (
     <Field.Root disabled={locked}>
@@ -219,11 +217,9 @@ export function CaseDetailsPage() {
                   />
                 ) : (
                   <Field.HelperText>
-                    {m.origin.tumorType === 'platform'
-                      ? 'Recorded on the analysis platform and used there for annotation and ranking.'
-                      : m.origin.tumorType === 'lims' && m.diagnosisCode
-                        ? `Mapped from ${m.diagnosisCode.system} ${m.diagnosisCode.morphology} (${m.diagnosisCode.topography}).`
-                        : 'Diagnosis from the pathology report, coded for evidence lookup.'}
+                    {m.origin.tumorType === 'lims' && m.diagnosisCode
+                      ? `Mapped from ${m.diagnosisCode.system} ${m.diagnosisCode.morphology} (${m.diagnosisCode.topography}).`
+                      : 'Diagnosis from the pathology report, coded for evidence lookup.'}
                   </Field.HelperText>
                 )}
               </Field.Root>
@@ -249,11 +245,9 @@ export function CaseDetailsPage() {
                   />
                 </InputGroup>
                 <Field.HelperText>
-                  {m.origin.tumorContent === 'platform'
-                    ? 'From the analysis platform case.'
-                    : m.origin.tumorContent === 'lims'
-                      ? 'From the pathology record in the LIMS.'
-                      : '1–100%, estimated by the pathologist.'}
+                  {m.origin.tumorContent === 'lims'
+                    ? 'From the pathology record in the LIMS.'
+                    : '1–100%, estimated by the pathologist.'}
                 </Field.HelperText>
               </Field.Root>
             </SimpleGrid>
@@ -261,11 +255,7 @@ export function CaseDetailsPage() {
 
           <Section
             title="Test order"
-            hint={
-              isExport
-                ? 'Optional for platform exports: the case context came with the export. Fetch the order from the LIMS only if you need more details. LIMS values never overwrite values from the export or values you typed.'
-                : 'Fetched from the LIMS automatically when the case is created (HL7 ORM or FHIR ServiceRequest in a real deployment). Values you type are never overwritten.'
-            }
+            hint="Fetched from the LIMS automatically when the case is created (HL7 ORM or FHIR ServiceRequest in a real deployment). Values you type are never overwritten."
             action={
               <Button
                 size="sm"
@@ -364,22 +354,10 @@ export function CaseDetailsPage() {
               <Mono tone="muted" size="xs" wordBreak="break-all">
                 {sourceLocation(c.source)}
               </Mono>
-              <HStack gap="2" color="fg.muted">
-                <Badge size="xs" variant="subtle" colorPalette={isExport ? 'accent' : 'aqua'}>
-                  {INPUT_FORMAT_LABEL[sourceFormat(c.source)]}
-                </Badge>
-                <Text>{formatBytes(c.source.sizeBytes)}</Text>
-              </HStack>
+              <Text color="fg.muted">{formatBytes(c.source.sizeBytes)}</Text>
             </Stack>
           </Section>
-          <Section
-            title={isExport ? 'From export manifest' : 'From VCF header'}
-            hint={
-              isExport
-                ? 'Read from the analysis platform export; not editable.'
-                : 'Read from the VCF header; not editable.'
-            }
-          >
+          <Section title="From VCF header" hint="Read from the VCF header; not editable.">
             <Stack gap="3" fontSize="sm">
               {(
                 [
