@@ -44,7 +44,7 @@ Set `VITE_FAST_MOCKS=1` to make mocked services respond instantly.
 src/
   domain/        Pure logic and types, no React. Covered by tests.
     types.ts     Case, Variant, ProcessingState, CaseMetadata, AuditEvent…
-    case/        createCase(), audit helpers, sample id from file name
+    case/        createCase(), audit helpers, sample id from file name, interpretation state
     metadata/    Required fields for interpretation (tumor type, tumor content)
     upload/      File rules: accepted extensions, size, NFS / s3:// path building
     report/      buildReport(), draft summary/recommendations, plain-text export
@@ -69,6 +69,10 @@ Key rules:
 
 - Background jobs live in `store/caseStore.ts`. A case is created before processing starts; AI interpretation
   waits until `canStartInterpretation(metadata)` is true and starts automatically when metadata is filled in.
+- What is visible when is decided by `domain/case/interpretation.ts`: annotated variants (gene, HGVS, VAF,
+  consequence) and report selection are available as soon as filtering & ranking are done (`isAnnotated`);
+  AI-derived content (classifications, descriptions, flags, analysis details) and the report stay locked until
+  `interpretationState(case) === 'done'`. Show the reason with `<InterpretationPending>`.
 - Every user-visible change to a case appends an `AuditEvent`.
 - Features call services only through `services` from `src/services/index.ts`.
 
@@ -79,8 +83,8 @@ Key rules:
 | `#/` | Cases overview |
 | `#/new` | New case: local file or remote file browser |
 | `#/case/:id/details` | Processing banner + case metadata |
-| `#/case/:id/variants` | Ranked variant list + variant detail card |
-| `#/case/:id/report` | Report draft, assistant chat (`?chat=1` focuses it), sign-off |
+| `#/case/:id/variants` | Ranked variant list + variant detail card (available after ranking; AI sections after interpretation) |
+| `#/case/:id/report` | Report draft, assistant chat (`?chat=1` focuses it), sign-off (locked until interpretation is done) |
 | `#/ui` | Design system showcase |
 
 Demo switch: add `?fail=<step>` (`uploading`, `validating`, `annotation`, `filtering`, `interpretation`) to the

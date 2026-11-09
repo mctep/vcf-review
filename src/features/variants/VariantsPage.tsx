@@ -3,6 +3,7 @@ import { Copy, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toaster } from '../../components/ui/toaster'
+import { interpretationBlockReason, interpretationState, isAnnotated } from '../../domain/case/interpretation'
 import { buildReport, reportToPlainText } from '../../domain/report/buildReport'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
@@ -40,7 +41,8 @@ export function VariantsPage() {
   const navigate = useNavigate()
   const [activeId, setActiveId] = useState<string>()
   const active = c.variants.find((v) => v.id === activeId) ?? c.variants[0]
-  const interpreted = c.processing.steps.interpretation === 'done'
+  const interpreted = interpretationState(c) === 'done'
+  const annotated = isAnnotated(c)
 
   const copyOutput = () => {
     navigator.clipboard?.writeText(reportToPlainText(buildReport(c)))
@@ -52,12 +54,17 @@ export function VariantsPage() {
       <CaseHeader
         c={c}
         actions={
-          interpreted && (
+          annotated && (
             <>
-              <Button colorPalette="brand" onClick={() => navigate(`/case/${c.id}/report`)}>
+              <Button
+                colorPalette="brand"
+                disabled={!interpreted}
+                title={interpretationBlockReason(c)}
+                onClick={() => navigate(`/case/${c.id}/report`)}
+              >
                 <FileText /> {c.report.status === 'signed' ? 'Open report' : 'Create report'}
               </Button>
-              <Button colorPalette="brand" variant="outline" onClick={copyOutput}>
+              <Button colorPalette="brand" variant="outline" disabled={!interpreted} onClick={copyOutput}>
                 <Copy /> Copy output
               </Button>
             </>
@@ -65,13 +72,13 @@ export function VariantsPage() {
         }
       />
       <ProcessingBanner c={c} compact />
-      {!interpreted || !active ? (
+      {!annotated || !active ? (
         <VariantsSkeleton />
       ) : (
         <Grid templateColumns={{ base: '1fr', lg: '20rem minmax(0, 1fr)' }} gap="5" alignItems="start">
-          <VariantList c={c} activeId={active.id} onActivate={setActiveId} />
+          <VariantList c={c} activeId={active.id} onActivate={setActiveId} interpreted={interpreted} />
           <Box minW="0">
-            <VariantDetail key={active.id} c={c} v={active} />
+            <VariantDetail key={active.id} c={c} v={active} interpreted={interpreted} />
           </Box>
         </Grid>
       )}

@@ -45,10 +45,12 @@ interface Props {
   c: Case
   activeId: string
   onActivate: (id: string) => void
+  /** Before AI interpretation only annotation data (consequence, VAF) is shown. */
+  interpreted: boolean
 }
 
 /** Ranked variant list. Checkbox = include in report; click = open details. */
-export function VariantList({ c, activeId, onActivate }: Props) {
+export function VariantList({ c, activeId, onActivate, interpreted }: Props) {
   const [sort, setSort] = useState<Sort>('rank')
   const toggle = useCaseStore((s) => s.toggleVariant)
   const setSelection = useCaseStore((s) => s.setSelection)
@@ -57,9 +59,9 @@ export function VariantList({ c, activeId, onActivate }: Props) {
   const variants = useMemo(() => {
     const list = [...c.variants]
     if (sort === 'gene') list.sort((a, b) => a.gene.localeCompare(b.gene))
-    if (sort === 'tier') list.sort((a, b) => tierRank(a.tier) - tierRank(b.tier))
+    if (sort === 'tier' && interpreted) list.sort((a, b) => tierRank(a.tier) - tierRank(b.tier))
     return list
-  }, [c.variants, sort])
+  }, [c.variants, sort, interpreted])
 
   const all = c.selected.length === c.variants.length
   const some = c.selected.length > 0 && !all
@@ -77,7 +79,9 @@ export function VariantList({ c, activeId, onActivate }: Props) {
             aria-label="Sort variants"
           >
             <option value="rank">Ranking</option>
-            <option value="tier">Tier</option>
+            <option value="tier" disabled={!interpreted}>
+              Tier
+            </option>
             <option value="gene">Gene name</option>
           </NativeSelect.Field>
           <NativeSelect.Indicator />
@@ -153,21 +157,31 @@ export function VariantList({ c, activeId, onActivate }: Props) {
                 <Item.Title>
                   <VariantNotation v={v} />
                 </Item.Title>
-                <Item.Meta colorPalette={ONCOGENICITY_PALETTE[v.oncogenicity]}>
-                  <Item.Dot />
-                  {ONCOGENICITY_LABEL[v.oncogenicity]}
-                  <Text as="span" color="fg.subtle">
-                    ·
-                  </Text>
-                  <Text
-                    as="span"
-                    color={v.tier === 'I' ? 'tier1.fg' : undefined}
-                    fontWeight={v.tier === 'I' ? '600' : undefined}
-                  >
-                    Tier {v.tier === 'III' || v.tier === 'IV' ? v.tier : v.tierLevel}
-                  </Text>
-                </Item.Meta>
-                {v.flags.length > 0 && (
+                {!interpreted ? (
+                  <Item.Meta>
+                    {v.consequence}
+                    <Text as="span" color="fg.subtle">
+                      ·
+                    </Text>
+                    {v.kind === 'cnv' ? `CN ${v.copyNumber}` : `VAF ${v.vaf}%`}
+                  </Item.Meta>
+                ) : (
+                  <Item.Meta colorPalette={ONCOGENICITY_PALETTE[v.oncogenicity]}>
+                    <Item.Dot />
+                    {ONCOGENICITY_LABEL[v.oncogenicity]}
+                    <Text as="span" color="fg.subtle">
+                      ·
+                    </Text>
+                    <Text
+                      as="span"
+                      color={v.tier === 'I' ? 'tier1.fg' : undefined}
+                      fontWeight={v.tier === 'I' ? '600' : undefined}
+                    >
+                      Tier {v.tier === 'III' || v.tier === 'IV' ? v.tier : v.tierLevel}
+                    </Text>
+                  </Item.Meta>
+                )}
+                {interpreted && v.flags.length > 0 && (
                   <Text fontSize="2xs" color="accent.fg" fontWeight="600">
                     {v.flags.map((f) => FLAG_LABEL[f]).join(' · ')}
                   </Text>

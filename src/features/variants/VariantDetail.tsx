@@ -28,6 +28,7 @@ import type { Case, Variant } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { InfoTip, Mono, SectionTitle } from '../../ui'
 import { AnalysisDrawer } from './AnalysisDrawer'
+import { InterpretationPending } from '../case/InterpretationPending'
 import { ClassificationRow } from './ClassificationRow'
 import { DescriptionSection } from './DescriptionSection'
 
@@ -80,7 +81,7 @@ function FeedbackDialog({ onSubmit }: { onSubmit: (text: string) => void }) {
 }
 
 /** Right-hand card: header, classifications, AI-drafted descriptions, agreement + actions. */
-export function VariantDetail({ c, v }: { c: Case; v: Variant }) {
+export function VariantDetail({ c, v, interpreted }: { c: Case; v: Variant; interpreted: boolean }) {
   const edit = useCaseStore((s) => s.editDescription)
   const feedback = useCaseStore((s) => s.leaveFeedback)
   const [analysisOpen, setAnalysisOpen] = useState(false)
@@ -120,7 +121,7 @@ export function VariantDetail({ c, v }: { c: Case; v: Variant }) {
               ? `Copy number ${v.copyNumber}`
               : `VAF ${v.vaf}% · ${v.altReads}/${v.depth} reads`}
           </Text>
-          {v.flags.length > 0 && (
+          {interpreted && v.flags.length > 0 && (
             <HStack gap="1.5" flexWrap="wrap">
               {v.flags.map((f) => (
                 <Badge key={f} size="sm" variant="outline" colorPalette="accent">
@@ -137,119 +138,125 @@ export function VariantDetail({ c, v }: { c: Case; v: Variant }) {
 
       <Separator my="5" />
 
-      <Stack gap="7">
-        {/* Classifications */}
-        <Stack gap="2">
-          <SectionTitle>Classifications</SectionTitle>
-          <ClassificationRow
-            label="Oncogenicity"
-            value={
-              <Badge variant="subtle" colorPalette={ONCOGENICITY_PALETTE[v.oncogenicity]}>
-                {ONCOGENICITY_LABEL[v.oncogenicity]}
-              </Badge>
-            }
-            info="ClinGen/CGC/VICC 2022 oncogenicity framework. Points from oncogenic and benign criteria are summed: ≥10 oncogenic, 6–9 likely oncogenic, 0–5 VUS."
-            triggerLabel="Show criteria"
-          >
-            <Stack gap="1.5">
-              {v.criteria.map((cr) => (
-                <Text key={cr.code}>
-                  <Mono size="xs" tone={cr.direction === 'oncogenic' ? 'brand' : 'default'}>
-                    {cr.code} ({cr.points > 0 ? '+' : ''}
-                    {cr.points})
-                  </Mono>{' '}
-                  {cr.rationale}
-                </Text>
-              ))}
-              <Text fontWeight="600" color="fg">
-                Score {score} → {ONCOGENICITY_LABEL[v.oncogenicity]}
-              </Text>
-            </Stack>
-          </ClassificationRow>
-          <ClassificationRow
-            label="AMP/ASCO/CAP"
-            value={
-              <Badge variant="subtle" colorPalette={TIER_PALETTE[v.tier]}>
-                Tier {v.tier === 'III' || v.tier === 'IV' ? v.tier : v.tierLevel}
-              </Badge>
-            }
-            info="2017 AMP/ASCO/CAP somatic tiers. Tier I: strong clinical significance; II: potential; III: unknown; IV: benign or likely benign."
-            triggerLabel="Show evidence"
-          >
-            <Stack gap="1.5">
-              {v.evidence.map((e) => (
-                <Text key={e.source + e.finding}>
-                  <b>{e.source}:</b> {e.finding}
-                </Text>
-              ))}
-              {v.therapies.map((t) => (
-                <Text key={t.drug}>
-                  <b>{t.drug}</b> — {t.effect}, {t.level} ({t.context})
-                </Text>
-              ))}
-            </Stack>
-          </ClassificationRow>
-          <ClassificationRow
-            label="Biological function"
-            value={
-              <Badge
-                variant="outline"
-                colorPalette={v.biologicalFunction === 'unknown' ? 'unknown' : 'brand'}
+      {!interpreted ? (
+        <InterpretationPending c={c} subject="Classifications and descriptions" />
+      ) : (
+        <>
+          <Stack gap="7">
+            {/* Classifications */}
+            <Stack gap="2">
+              <SectionTitle>Classifications</SectionTitle>
+              <ClassificationRow
+                label="Oncogenicity"
+                value={
+                  <Badge variant="subtle" colorPalette={ONCOGENICITY_PALETTE[v.oncogenicity]}>
+                    {ONCOGENICITY_LABEL[v.oncogenicity]}
+                  </Badge>
+                }
+                info="ClinGen/CGC/VICC 2022 oncogenicity framework. Points from oncogenic and benign criteria are summed: ≥10 oncogenic, 6–9 likely oncogenic, 0–5 VUS."
+                triggerLabel="Show criteria"
               >
-                {FUNCTION_LABEL[v.biologicalFunction]}
+                <Stack gap="1.5">
+                  {v.criteria.map((cr) => (
+                    <Text key={cr.code}>
+                      <Mono size="xs" tone={cr.direction === 'oncogenic' ? 'brand' : 'default'}>
+                        {cr.code} ({cr.points > 0 ? '+' : ''}
+                        {cr.points})
+                      </Mono>{' '}
+                      {cr.rationale}
+                    </Text>
+                  ))}
+                  <Text fontWeight="600" color="fg">
+                    Score {score} → {ONCOGENICITY_LABEL[v.oncogenicity]}
+                  </Text>
+                </Stack>
+              </ClassificationRow>
+              <ClassificationRow
+                label="AMP/ASCO/CAP"
+                value={
+                  <Badge variant="subtle" colorPalette={TIER_PALETTE[v.tier]}>
+                    Tier {v.tier === 'III' || v.tier === 'IV' ? v.tier : v.tierLevel}
+                  </Badge>
+                }
+                info="2017 AMP/ASCO/CAP somatic tiers. Tier I: strong clinical significance; II: potential; III: unknown; IV: benign or likely benign."
+                triggerLabel="Show evidence"
+              >
+                <Stack gap="1.5">
+                  {v.evidence.map((e) => (
+                    <Text key={e.source + e.finding}>
+                      <b>{e.source}:</b> {e.finding}
+                    </Text>
+                  ))}
+                  {v.therapies.map((t) => (
+                    <Text key={t.drug}>
+                      <b>{t.drug}</b> — {t.effect}, {t.level} ({t.context})
+                    </Text>
+                  ))}
+                </Stack>
+              </ClassificationRow>
+              <ClassificationRow
+                label="Biological function"
+                value={
+                  <Badge
+                    variant="outline"
+                    colorPalette={v.biologicalFunction === 'unknown' ? 'unknown' : 'brand'}
+                  >
+                    {FUNCTION_LABEL[v.biologicalFunction]}
+                  </Badge>
+                }
+                info="Predicted effect on protein function based on functional studies and curated databases."
+              />
+            </Stack>
+
+            <DescriptionSection
+              title="Gene description"
+              text={v.geneDescription}
+              edited={c.edits[`${v.id}:gene`]}
+              locked={locked}
+              onSave={(t) => edit(c.id, v.id, 'gene', t)}
+            />
+            <DescriptionSection
+              title="Variant description"
+              text={v.variantDescription}
+              edited={c.edits[`${v.id}:variant`]}
+              locked={locked}
+              onSave={(t) => edit(c.id, v.id, 'variant', t)}
+            />
+          </Stack>
+
+          <Separator my="5" />
+
+          {/* Footer */}
+          <Flex
+            gap="3"
+            justify="space-between"
+            align={{ base: 'stretch', sm: 'center' }}
+            direction={{ base: 'column', sm: 'row' }}
+          >
+            <HStack gap="1.5">
+              <Badge variant="outline" colorPalette={AGREEMENT_PALETTE[v.agreement]}>
+                {AGREEMENT_LABEL[v.agreement]}
               </Badge>
-            }
-            info="Predicted effect on protein function based on functional studies and curated databases."
-          />
-        </Stack>
-
-        <DescriptionSection
-          title="Gene description"
-          text={v.geneDescription}
-          edited={c.edits[`${v.id}:gene`]}
-          locked={locked}
-          onSave={(t) => edit(c.id, v.id, 'gene', t)}
-        />
-        <DescriptionSection
-          title="Variant description"
-          text={v.variantDescription}
-          edited={c.edits[`${v.id}:variant`]}
-          locked={locked}
-          onSave={(t) => edit(c.id, v.id, 'variant', t)}
-        />
-      </Stack>
-
-      <Separator my="5" />
-
-      {/* Footer */}
-      <Flex
-        gap="3"
-        justify="space-between"
-        align={{ base: 'stretch', sm: 'center' }}
-        direction={{ base: 'column', sm: 'row' }}
-      >
-        <HStack gap="1.5">
-          <Badge variant="outline" colorPalette={AGREEMENT_PALETTE[v.agreement]}>
-            {AGREEMENT_LABEL[v.agreement]}
-          </Badge>
-          <InfoTip content="How consistently the evidence sources agree on this variant. Low agreement means the reviewer should look closer." />
-        </HStack>
-        <HStack gap="2" justify="flex-end" flexWrap="wrap">
-          <FeedbackDialog
-            onSubmit={(text) => {
-              feedback(c.id, v.id, text)
-              toaster.create({
-                type: 'success',
-                title: 'Thanks — feedback recorded in the audit log',
-                duration: 3000,
-              })
-            }}
-          />
-          <Button colorPalette="brand" size="sm" onClick={() => setAnalysisOpen(true)}>
-            <ArrowRight /> View analysis details
-          </Button>
-        </HStack>
-      </Flex>
+              <InfoTip content="How consistently the evidence sources agree on this variant. Low agreement means the reviewer should look closer." />
+            </HStack>
+            <HStack gap="2" justify="flex-end" flexWrap="wrap">
+              <FeedbackDialog
+                onSubmit={(text) => {
+                  feedback(c.id, v.id, text)
+                  toaster.create({
+                    type: 'success',
+                    title: 'Thanks — feedback recorded in the audit log',
+                    duration: 3000,
+                  })
+                }}
+              />
+              <Button colorPalette="brand" size="sm" onClick={() => setAnalysisOpen(true)}>
+                <ArrowRight /> View analysis details
+              </Button>
+            </HStack>
+          </Flex>
+        </>
+      )}
 
       <AnalysisDrawer v={v} open={analysisOpen} onOpenChange={setAnalysisOpen} />
     </Box>

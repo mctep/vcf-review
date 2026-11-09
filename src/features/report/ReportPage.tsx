@@ -3,12 +3,13 @@ import { Copy, Lock } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import { toaster } from '../../components/ui/toaster'
+import { interpretationState } from '../../domain/case/interpretation'
 import { buildReport, reportToPlainText } from '../../domain/report/buildReport'
 import { useCaseStore } from '../../store/caseStore'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
 import { ProcessingBanner } from '../case/ProcessingBanner'
-import { VariantsSkeleton } from '../variants/VariantsPage'
+import { InterpretationPending } from '../case/InterpretationPending'
 import { AgentChat } from './AgentChat'
 import { ReportDocument } from './ReportDocument'
 import { SignOffDialog } from './SignOffDialog'
@@ -19,7 +20,7 @@ export function ReportPage() {
   const sign = useCaseStore((s) => s.signReport)
   const clearHighlight = useCaseStore((s) => s.clearHighlight)
   const report = useMemo(() => buildReport(c), [c])
-  const interpreted = c.processing.steps.interpretation === 'done'
+  const interpreted = interpretationState(c) === 'done'
   const signed = c.report.status === 'signed'
   const settle = useCallback(() => clearHighlight(c.id), [c.id, clearHighlight])
 
@@ -53,7 +54,7 @@ export function ReportPage() {
       />
       <ProcessingBanner c={c} compact />
       {!interpreted ? (
-        <VariantsSkeleton />
+        <InterpretationPending c={c} subject="The report" size="lg" />
       ) : (
         <Grid templateColumns={{ base: '1fr', xl: 'minmax(0, 1fr) 22rem' }} gap="6" alignItems="start">
           <Grid gap="3">
