@@ -11,6 +11,8 @@ const appGradient = `linear-gradient(135deg,
 export const globalCss = defineGlobalStyles({
   html: {
     colorPalette: 'brand',
+    // Reserve the scrollbar's space so pages of different length (Details vs Variants) keep the same width.
+    scrollbarGutter: 'stable',
     fontFeatureSettings: '"ss01", "cv11"',
   },
   body: {

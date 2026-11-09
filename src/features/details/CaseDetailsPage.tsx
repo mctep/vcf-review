@@ -13,10 +13,11 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { AlertTriangle, Check, DatabaseZap, FileCode2, Lock } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { DatabaseZap, FileCode2, Lock } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router'
 import { sourceLocation } from '../../domain/case/factory'
-import { interpretationBlockers, type RequiredField } from '../../domain/metadata/requiredFields'
+import { missingRequiredFields, type RequiredField } from '../../domain/metadata/requiredFields'
 import { mapDiagnosisToOncoTree } from '../../domain/metadata/tumorTypeMapping'
 import { toaster } from '../../components/ui/toaster'
 import { formatBytes } from '../../domain/upload/fileRules'
@@ -25,6 +26,7 @@ import { useCaseStore } from '../../store/caseStore'
 import { InfoTip, Mono, SectionTitle } from '../../ui'
 import { CaseHeader } from '../case/CaseHeader'
 import { useCurrentCase } from '../case/CaseLayout'
+import { FOCUS_PARAM, focusRequiredField, REQUIRED_FIELDS_ID, requiredFieldAttr } from '../case/anchors'
 import { ProcessingBanner } from '../case/ProcessingBanner'
 import { StaleInterpretationCallout } from '../case/StaleInterpretationCallout'
 import { OncoTreeCombobox } from './OncoTreeCombobox'
@@ -54,55 +56,21 @@ function OriginBadge({ origin }: { origin?: MetadataOrigin }) {
   )
 }
 
-/** Yellow callout for a value that was pre-filled from an ambiguous source. */
-function ConfirmCallout({
-  reason,
-  disabled,
-  onConfirm,
-}: {
-  reason: string
-  disabled: boolean
-  onConfirm: () => void
-}) {
-  return (
-    <HStack
-      colorPalette="yellow"
-      bg="colorPalette.subtle"
-      borderWidth="1px"
-      borderColor="colorPalette.emphasized"
-      borderRadius="l2"
-      px="3"
-      py="2"
-      gap="3"
-      align="flex-start"
-      w="full"
-    >
-      <Box color="colorPalette.fg" pt="0.5">
-        <AlertTriangle size={16} />
-      </Box>
-      <Text fontSize="sm" flex="1">
-        <b>Needs confirmation.</b> {reason}
-      </Text>
-      <Button size="xs" colorPalette="brand" disabled={disabled} onClick={onConfirm}>
-        <Check /> Confirm
-      </Button>
-    </HStack>
-  )
-}
-
 function Section({
+  id,
   title,
   hint,
   action,
   children,
 }: {
+  id?: string
   title: string
   hint?: ReactNode
   action?: ReactNode
   children: ReactNode
 }) {
   return (
-    <Box layerStyle="card" p={{ base: '4', md: '6' }}>
+    <Box id={id} layerStyle="card" p={{ base: '4', md: '6' }} scrollMarginTop="4">
       <HStack justify="space-between" mb="4" gap="3" flexWrap="wrap">
         <HStack gap="2">
           <SectionTitle>{title}</SectionTitle>
@@ -119,16 +87,23 @@ export function CaseDetailsPage() {
   const c = useCurrentCase()
   const update = useCaseStore((s) => s.updateMetadata)
   const fetchFromLims = useCaseStore((s) => s.fetchLims)
-  const confirm = useCaseStore((s) => s.confirmField)
   const [fetching, setFetching] = useState(false)
+  const [params, setParams] = useSearchParams()
+  const focusField = params.get(FOCUS_PARAM)
+
+  // "Fill in …" on another tab opens Details with ?focus=<field>: focus it once, then drop the param.
+  useEffect(() => {
+    if (focusField !== 'tumorType' && focusField !== 'tumorContent') return
+    const t = setTimeout(() => {
+      focusRequiredField(focusField)
+      setParams((p) => (p.delete(FOCUS_PARAM), p), { replace: true })
+    }, 50)
+    return () => clearTimeout(t)
+  }, [focusField, setParams])
   const m = c.metadata
   // Highlight required fields only once processing is actually waiting for them.
   const waiting = c.processing.steps.interpretation === 'waiting'
-  const blockers = interpretationBlockers(m)
-  const missing: RequiredField[] = waiting
-    ? blockers.filter((b) => b.reason === 'missing').map((b) => b.field)
-    : []
-  const unconfirmed = blockers.filter((b) => b.reason === 'unconfirmed').map((b) => b.field)
+  const missing: RequiredField[] = waiting ? missingRequiredFields(m) : []
   const mapping = mapDiagnosisToOncoTree(m.diagnosisCode)
   const locked = c.report.status === 'signed'
 
@@ -177,6 +152,7 @@ export function CaseDetailsPage() {
       <Grid templateColumns={{ base: '1fr', xl: '2fr 1fr' }} gap="6" alignItems="start">
         <Stack gap="6">
           <Section
+            id={REQUIRED_FIELDS_ID}
             title="Required for interpretation"
             hint="Structured on purpose: evidence levels and AMP/ASCO/CAP tiers depend on the tumor type; VAF interpretation (clonality, possible germline origin) depends on tumor content."
           >
@@ -196,6 +172,7 @@ export function CaseDetailsPage() {
                   value={m.tumorType}
                   invalid={missing.includes('tumorType')}
                   disabled={locked}
+                  inputProps={requiredFieldAttr('tumorType')}
                   onChange={(t) =>
                     update(
                       c.id,
@@ -205,23 +182,14 @@ export function CaseDetailsPage() {
                     )
                   }
                 />
-                {unconfirmed.includes('tumorType') ? (
-                  <ConfirmCallout
-                    reason={
-                      mapping.confidence === 'ambiguous'
-                        ? `${mapping.reason}. Confirm the suggestion or pick a more specific type.`
-                        : 'Check the pre-filled value.'
-                    }
-                    disabled={locked}
-                    onConfirm={() => confirm(c.id, 'tumorType')}
-                  />
-                ) : (
-                  <Field.HelperText>
-                    {m.origin.tumorType === 'lims' && m.diagnosisCode
-                      ? `Mapped from ${m.diagnosisCode.system} ${m.diagnosisCode.morphology} (${m.diagnosisCode.topography}).`
-                      : 'Diagnosis from the pathology report, coded for evidence lookup.'}
-                  </Field.HelperText>
-                )}
+                <Field.HelperText>
+                  {m.origin.tumorType === 'lims' && m.diagnosisCode
+                    ? `Mapped from ${m.diagnosisCode.system} ${m.diagnosisCode.morphology} (${m.diagnosisCode.topography})` +
+                      (mapping.confidence === 'ambiguous'
+                        ? ' — closest match, pick a more specific type if known.'
+                        : '.')
+                    : 'Diagnosis from the pathology report, coded for evidence lookup.'}
+                </Field.HelperText>
               </Field.Root>
               <Field.Root required invalid={missing.includes('tumorContent')} disabled={locked}>
                 <Field.Label w="full">
@@ -231,6 +199,7 @@ export function CaseDetailsPage() {
                 <InputGroup endElement="%">
                   <Input
                     key={`tc:${m.tumorContent ?? ''}`}
+                    {...requiredFieldAttr('tumorContent')}
                     type="number"
                     min={1}
                     max={100}

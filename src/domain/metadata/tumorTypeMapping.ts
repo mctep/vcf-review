@@ -58,14 +58,14 @@ export function mapDiagnosisToOncoTree(code: DiagnosisCode | undefined): Mapping
 export function resolveTumorType(
   code: DiagnosisCode | undefined,
   catalog: TumorType[],
-): { tumorType?: TumorType; needsConfirmation: boolean; reason?: string } {
+): { tumorType?: TumorType; ambiguous: boolean; reason?: string } {
   const result = mapDiagnosisToOncoTree(code)
-  if (result.confidence === 'none') return { needsConfirmation: false }
+  if (result.confidence === 'none') return { ambiguous: false }
   const tumorType = catalog.find((t) => t.code === result.code)
-  if (!tumorType) return { needsConfirmation: false }
+  if (!tumorType) return { ambiguous: false }
   return {
     tumorType,
-    needsConfirmation: result.confidence === 'ambiguous',
+    ambiguous: result.confidence === 'ambiguous',
     reason: result.confidence === 'ambiguous' ? result.reason : undefined,
   }
 }

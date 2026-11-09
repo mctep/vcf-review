@@ -66,7 +66,7 @@ export function ReportPage() {
           )
         }
       />
-      <ProcessingBanner c={c} compact />
+      <ProcessingBanner c={c} />
       <StaleInterpretationCallout c={c} />
       {!interpreted ? (
         <InterpretationPending c={c} subject="The report" size="lg" />

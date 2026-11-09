@@ -69,9 +69,8 @@ Key rules:
 
 - Background jobs live in `store/caseStore.ts`. A case is created before processing starts, and the LIMS order
   is fetched automatically (`fetchLims`). The tumor type is mapped from the ICD-O-3 code (`tumorTypeMapping.ts`);
-  ambiguous codes are pre-filled but listed in `metadata.unconfirmed`. AI interpretation starts automatically
-  once `canStartInterpretation(metadata)` is true (fields present and confirmed); a value typed by a user counts
-  as confirmed. The draft records the inputs it was produced for (`interpretationContext`); changing tumor type
+  ambiguous codes pre-fill the closest (broader) type, noted in the audit log — no confirmation step. AI
+  interpretation starts automatically once `canStartInterpretation(metadata)` is true (required fields present). The draft records the inputs it was produced for (`interpretationContext`); changing tumor type
   or tumor content afterwards does **not** re-run it — the draft becomes stale (`staleInputs`) and
   `<StaleInterpretationCallout>` lets the reviewer re-run it (confirmation dialog; reviewer edits are discarded,
   selection kept) or keep it. Sign-off is blocked while the draft is stale and requires an explicit confirmation

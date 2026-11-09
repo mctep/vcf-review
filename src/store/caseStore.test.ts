@@ -39,32 +39,16 @@ describe('caseStore background processing', () => {
     expect(c.metadata.tumorType?.code).toBe('LUAD')
     expect(c.metadata.origin.tumorType).toBe('lims')
     expect(c.metadata.tumorContent).toBe(60)
-    expect(c.metadata.unconfirmed).toEqual([])
     expect(c.processing.steps.interpretation).toBe('done')
     expect(c.audit.some((e) => e.message.includes('→ Lung Adenocarcinoma (LUAD)'))).toBe(true)
   })
 
-  it('waits for confirmation when the diagnosis code is ambiguous', async () => {
+  it('pre-fills the closest tumor type for an ambiguous code and starts interpretation', async () => {
     const id = create('S26-1210_NSCLC.vcf.gz')
     await settle()
     expect(get(id).metadata.tumorType?.code).toBe('NSCLC')
-    expect(get(id).metadata.unconfirmed).toEqual(['tumorType'])
-    expect(get(id).processing.steps.interpretation).toBe('waiting')
-
-    useCaseStore.getState().confirmField(id, 'tumorType')
-    await settle()
-    expect(get(id).metadata.unconfirmed).toEqual([])
     expect(get(id).processing.steps.interpretation).toBe('done')
-  })
-
-  it('treats picking a tumor type manually as confirmation', async () => {
-    const id = create('S26-1210_NSCLC.vcf.gz')
-    await settle()
-    useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUAD') })
-    await settle()
-    expect(get(id).metadata.unconfirmed).toEqual([])
-    expect(get(id).metadata.origin.tumorType).toBe('user')
-    expect(get(id).processing.steps.interpretation).toBe('done')
+    expect(get(id).audit.some((e) => e.message.includes('closest match'))).toBe(true)
   })
 
   it('marks the draft stale when inputs change and re-runs only on request', async () => {

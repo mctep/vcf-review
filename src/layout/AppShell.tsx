@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { toaster, Toaster } from '../components/ui/toaster'
 import { displayStatus } from '../domain/case/interpretation'
-import { waitingMessage, interpretationBlockers } from '../domain/metadata/requiredFields'
+import { missingRequiredFields, waitingMessage } from '../domain/metadata/requiredFields'
 import type { DisplayStatus } from '../domain/types'
 import { AuditDrawer } from '../features/audit/AuditDrawer'
 import { useCaseStore } from '../store/caseStore'
@@ -27,7 +27,7 @@ function useProcessingNotifications() {
           toaster.create({
             type: 'warning',
             title: `Case ${c.metadata.sampleId} needs input`,
-            description: `Variants are ranked. ${waitingMessage(interpretationBlockers(c.metadata))}.`,
+            description: `Variants are ranked. ${waitingMessage(missingRequiredFields(c.metadata))}.`,
             action: { label: 'Open', onClick: () => navigate(`/case/${c.id}/details`) },
             duration: 8000,
           })

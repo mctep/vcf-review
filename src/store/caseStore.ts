@@ -3,7 +3,7 @@ import { auditEvent, createCase, CURRENT_USER, newId, processingProgress } from 
 import { STEP_LABEL } from '../domain/labels'
 import { describeInputChanges, isInterpretationStale } from '../domain/case/interpretation'
 import { buildReport } from '../domain/report/buildReport'
-import { canStartInterpretation, REQUIRED_FIELD_LABELS } from '../domain/metadata/requiredFields'
+import { canStartInterpretation } from '../domain/metadata/requiredFields'
 import { resolveTumorType } from '../domain/metadata/tumorTypeMapping'
 import {
   PROCESSING_STEPS,
@@ -11,7 +11,6 @@ import {
   type Case,
   type CaseMetadata,
   type ChatQuote,
-  type InterpretationField,
   type MetadataOrigin,
   type ProcessingStepId,
   type ReportSectionId,
@@ -47,8 +46,6 @@ interface CaseStore {
   rerunInterpretation: (caseId: string) => void
   /** Keeps the current draft although its inputs changed (the reviewer judged the change irrelevant). */
   keepInterpretation: (caseId: string) => void
-  /** Confirms a pre-filled value that came from an ambiguous source. */
-  confirmField: (caseId: string, field: InterpretationField) => void
   toggleVariant: (caseId: string, variantId: string) => void
   setSelection: (caseId: string, variantIds: string[]) => void
   editDescription: (caseId: string, variantId: string, field: 'gene' | 'variant', text: string) => void
@@ -203,27 +200,11 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       const c = getCase(caseId)
       if (!c) return
       const wasStale = isInterpretationStale(c)
-      const originPatch = Object.fromEntries(
-        Object.keys(patch)
-          .filter((k) => k !== 'unconfirmed')
-          .map((k) => [k, origin]),
-      )
-      patchCase(caseId, (x) => {
-        // A value typed by a person counts as confirmed.
-        const unconfirmed =
-          origin === 'user'
-            ? (x.metadata.unconfirmed ?? []).filter((f) => !(f in patch))
-            : (patch.unconfirmed ?? x.metadata.unconfirmed)
-        return {
-          ...x,
-          metadata: {
-            ...x.metadata,
-            ...patch,
-            unconfirmed,
-            origin: { ...x.metadata.origin, ...originPatch },
-          },
-        }
-      })
+      const originPatch = Object.fromEntries(Object.keys(patch).map((k) => [k, origin]))
+      patchCase(caseId, (x) => ({
+        ...x,
+        metadata: { ...x.metadata, ...patch, origin: { ...x.metadata.origin, ...originPatch } },
+      }))
       if (auditMessage)
         log(caseId, auditEvent('metadata.updated', auditMessage, origin === 'lims' ? 'LIMS' : CURRENT_USER))
       const after = getCase(caseId)!
@@ -290,19 +271,16 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       const patch = Object.fromEntries(
         Object.entries(order).filter(([k, v]) => v !== undefined && !isUserValue(k)),
       ) as MetadataPatch
-      const unconfirmed = new Set(c.metadata.unconfirmed ?? [])
       const notes: string[] = []
 
       if (!isUserValue('tumorType') && order.diagnosisCode) {
-        const { tumorType, needsConfirmation, reason } = resolveTumorType(order.diagnosisCode, ONCOTREE)
+        const { tumorType, ambiguous, reason } = resolveTumorType(order.diagnosisCode, ONCOTREE)
         const code = `ICD-O-3 ${order.diagnosisCode.morphology} (${order.diagnosisCode.topography})`
         if (tumorType) {
           patch.tumorType = tumorType
-          if (needsConfirmation) unconfirmed.add('tumorType')
-          else unconfirmed.delete('tumorType')
           notes.push(
             `Tumor type mapped from ${code} → ${tumorType.name} (${tumorType.code})` +
-              (needsConfirmation ? ` — needs confirmation: ${reason}` : ''),
+              (ambiguous ? ` — closest match: ${reason}` : ''),
           )
         } else {
           notes.push(`No OncoTree mapping for ${code}; tumor type must be selected manually`)
@@ -310,7 +288,6 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       }
       if (patch.tumorContent !== undefined)
         notes.push(`Tumor content ${patch.tumorContent}% from pathology record`)
-      patch.unconfirmed = [...unconfirmed]
 
       get().updateMetadata(caseId, patch, 'lims', `Order fetched from LIMS for ${c.metadata.sampleId}`)
       for (const note of notes) log(caseId, auditEvent('metadata.updated', note, 'LIMS'))
@@ -326,27 +303,6 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       }
       get().applyLimsOrder(caseId, order)
       return 'applied'
-    },
-
-    confirmField(caseId, field) {
-      const c = getCase(caseId)
-      if (!c?.metadata.unconfirmed?.includes(field)) return
-      patchCase(caseId, (x) => ({
-        ...x,
-        metadata: { ...x.metadata, unconfirmed: (x.metadata.unconfirmed ?? []).filter((f) => f !== field) },
-      }))
-      const value =
-        field === 'tumorType'
-          ? `${c.metadata.tumorType?.name} (${c.metadata.tumorType?.code})`
-          : `${c.metadata.tumorContent}%`
-      log(
-        caseId,
-        auditEvent(
-          'metadata.updated',
-          `${REQUIRED_FIELD_LABELS[field][0].toUpperCase()}${REQUIRED_FIELD_LABELS[field].slice(1)} confirmed: ${value}`,
-        ),
-      )
-      maybeInterpret(caseId)
     },
 
     toggleVariant(caseId, variantId) {

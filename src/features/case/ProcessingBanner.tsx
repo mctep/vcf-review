@@ -1,11 +1,17 @@
-import { Box, Button, Flex, HStack, Link, Progress, Spinner, Stack, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, HStack, Progress, Spinner, Stack, Text } from '@chakra-ui/react'
 import { AlertTriangle, Check, CircleDashed, Clock, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { STEP_LABEL } from '../../domain/labels'
-import { interpretationBlockers, waitingMessage } from '../../domain/metadata/requiredFields'
+import {
+  missingRequiredFields,
+  REQUIRED_FIELD_LABELS,
+  waitingMessage,
+} from '../../domain/metadata/requiredFields'
 import { PROCESSING_STEPS, type Case, type StepState } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
 import { Eyebrow } from '../../ui'
+import { FOCUS_PARAM, focusRequiredField } from './anchors'
 
 const STEP_ICON: Record<StepState, React.ReactNode> = {
   pending: <CircleDashed size={16} />,
@@ -37,14 +43,16 @@ function useElapsed(startedAt: string, finishedAt?: string) {
 
 /**
  * Background job status: steps, progress, waiting-for-metadata and failure states.
- * Rendered on Details (full) and on Variants/Report while processing (compact).
+ * Rendered identically on every case tab, so switching tabs does not change its size.
  */
-export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: boolean }) {
+export function ProcessingBanner({ c }: { c: Case }) {
+  const navigate = useNavigate()
+  const onDetails = useLocation().pathname.endsWith('/details')
   const retry = useCaseStore((s) => s.retry)
   const { steps, progress, error, startedAt, finishedAt } = c.processing
   const elapsed = useElapsed(startedAt, finishedAt)
   const waiting = steps.interpretation === 'waiting'
-  const blockers = interpretationBlockers(c.metadata)
+  const missing = missingRequiredFields(c.metadata)
   const failed = c.status === 'failed'
 
   if (c.status !== 'processing' && !failed) return null
@@ -59,7 +67,7 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
       colorPalette={palette}
       layerStyle="glass"
       borderRadius="l3"
-      p={compact ? '4' : '5'}
+      p="5"
       mb="6"
       position="relative"
       overflow="hidden"
@@ -81,14 +89,14 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
             {failed && error
               ? `${STEP_LABEL[error.step]}: ${error.message}`
               : waiting
-                ? waitingMessage(blockers)
+                ? waitingMessage(missing)
                 : `${current ? STEP_LABEL[current] : 'Finishing'}…`}
           </Text>
           <Text fontSize="sm" color="fg.muted">
             {failed
               ? 'Your case and metadata are kept. Retry resumes from the failed step.'
               : waiting
-                ? 'Variants are annotated and ranked — you can already review them. Complete or confirm the required fields to draft interpretations.'
+                ? 'Variants are annotated and ranked — you can already review them. Complete the required fields to draft interpretations.'
                 : 'You can keep working on this case — fill in metadata while the file is processed.'}
           </Text>
         </Stack>
@@ -101,74 +109,81 @@ export function ProcessingBanner({ c, compact = false }: { c: Case; compact?: bo
               <RotateCcw /> Retry
             </Button>
           )}
-          {waiting && compact && (
-            <Button size="sm" variant="outline" colorPalette="brand" asChild>
-              <Link href={`#/case/${c.id}/details`}>Fill in metadata</Link>
+          {waiting && missing.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              colorPalette="brand"
+              onClick={() => {
+                // On Details the field is on this page; elsewhere open Details and let it focus the field.
+                if (onDetails) focusRequiredField(missing[0])
+                else navigate(`/case/${c.id}/details?${FOCUS_PARAM}=${missing[0]}`)
+              }}
+            >
+              Fill in {REQUIRED_FIELD_LABELS[missing[0]]}
             </Button>
           )}
         </HStack>
       </Flex>
 
-      {!compact && (
-        <>
-          <Progress.Root
-            value={progress}
-            size="xs"
-            mt="4"
-            colorPalette={palette}
-            aria-label="Processing progress"
-          >
-            <Progress.Track bg="bg.muted">
-              <Progress.Range />
-            </Progress.Track>
-          </Progress.Root>
-          <Flex
-            as="ol"
-            mt="4"
-            gap={{ base: '2', md: '0' }}
-            direction={{ base: 'column', md: 'row' }}
-            listStyleType="none"
-          >
-            {PROCESSING_STEPS.map((s, i) => (
-              <HStack as="li" key={s} flex="1" gap="2" colorPalette={STEP_PALETTE[steps[s]]} minW="0">
-                <Flex
-                  boxSize="7"
-                  borderRadius="full"
-                  align="center"
-                  justify="center"
-                  flexShrink={0}
-                  bg={steps[s] === 'done' ? 'colorPalette.solid' : 'colorPalette.subtle'}
-                  color={steps[s] === 'done' ? 'colorPalette.contrast' : 'colorPalette.fg'}
-                  borderWidth="1px"
-                  borderColor="colorPalette.emphasized"
-                >
-                  {STEP_ICON[steps[s]]}
-                </Flex>
-                <Text
-                  fontSize="sm"
-                  fontWeight={steps[s] === 'running' ? '700' : '500'}
-                  color={steps[s] === 'pending' ? 'fg.subtle' : 'fg'}
-                  truncate
-                >
-                  {STEP_LABEL[s]}
-                </Text>
-                {i < PROCESSING_STEPS.length - 1 && (
-                  <Box display={{ base: 'none', md: 'block' }} flex="1" h="1px" bg="border" mx="2" />
-                )}
-              </HStack>
-            ))}
-          </Flex>
-          {waiting && (
-            <HStack mt="4" gap="2" fontSize="sm" color="orange.fg">
-              <AlertTriangle size={16} />
-              <Text>
-                Interpretation depends on the tumor type (evidence levels, tiers) and tumor content
-                (clonality, possible germline origin).
+      <>
+        <Progress.Root
+          value={progress}
+          size="xs"
+          mt="4"
+          colorPalette={palette}
+          aria-label="Processing progress"
+        >
+          <Progress.Track bg="bg.muted">
+            <Progress.Range />
+          </Progress.Track>
+        </Progress.Root>
+        <Flex
+          as="ol"
+          mt="4"
+          gap={{ base: '2', md: '0' }}
+          direction={{ base: 'column', md: 'row' }}
+          listStyleType="none"
+        >
+          {PROCESSING_STEPS.map((s, i) => (
+            <HStack as="li" key={s} flex="1" gap="2" colorPalette={STEP_PALETTE[steps[s]]} minW="0">
+              <Flex
+                boxSize="7"
+                borderRadius="full"
+                align="center"
+                justify="center"
+                flexShrink={0}
+                bg={steps[s] === 'done' ? 'colorPalette.solid' : 'colorPalette.subtle'}
+                color={steps[s] === 'done' ? 'colorPalette.contrast' : 'colorPalette.fg'}
+                borderWidth="1px"
+                borderColor="colorPalette.emphasized"
+              >
+                {STEP_ICON[steps[s]]}
+              </Flex>
+              <Text
+                fontSize="sm"
+                fontWeight={steps[s] === 'running' ? '700' : '500'}
+                color={steps[s] === 'pending' ? 'fg.subtle' : 'fg'}
+                truncate
+              >
+                {STEP_LABEL[s]}
               </Text>
+              {i < PROCESSING_STEPS.length - 1 && (
+                <Box display={{ base: 'none', md: 'block' }} flex="1" h="1px" bg="border" mx="2" />
+              )}
             </HStack>
-          )}
-        </>
-      )}
+          ))}
+        </Flex>
+        {waiting && (
+          <HStack mt="4" gap="2" fontSize="sm" color="orange.fg">
+            <AlertTriangle size={16} />
+            <Text>
+              Interpretation depends on the tumor type (evidence levels, tiers) and tumor content (clonality,
+              possible germline origin).
+            </Text>
+          </HStack>
+        )}
+      </>
     </Box>
   )
 }

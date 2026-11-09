@@ -8,10 +8,12 @@ interface Props {
   onChange: (value: TumorType | undefined) => void
   invalid?: boolean
   disabled?: boolean
+  /** Extra attributes for the search input (e.g. a focus target marker). */
+  inputProps?: Record<string, string>
 }
 
 /** Tumor type picker backed by a local OncoTree subset (structured, codes drive evidence levels). */
-export function OncoTreeCombobox({ value, onChange, invalid, disabled }: Props) {
+export function OncoTreeCombobox({ value, onChange, invalid, disabled, inputProps }: Props) {
   const { contains } = useFilter({ sensitivity: 'base' })
   const { collection, filter } = useListCollection({
     initialItems: ONCOTREE,
@@ -32,7 +34,7 @@ export function OncoTreeCombobox({ value, onChange, invalid, disabled }: Props) 
       openOnClick
     >
       <Combobox.Control>
-        <Combobox.Input placeholder="Search OncoTree, e.g. lung adenocarcinoma or LUAD" />
+        <Combobox.Input placeholder="Search OncoTree, e.g. lung adenocarcinoma or LUAD" {...inputProps} />
         <Combobox.IndicatorGroup>
           <Combobox.ClearTrigger />
           <Combobox.Trigger />

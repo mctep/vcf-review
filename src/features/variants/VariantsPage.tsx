@@ -72,7 +72,7 @@ export function VariantsPage() {
           )
         }
       />
-      <ProcessingBanner c={c} compact />
+      <ProcessingBanner c={c} />
       <StaleInterpretationCallout c={c} />
       {!annotated || !active ? (
         <VariantsSkeleton />

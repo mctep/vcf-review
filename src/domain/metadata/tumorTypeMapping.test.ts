@@ -20,14 +20,14 @@ describe('tumorTypeMapping', () => {
     expect(mapDiagnosisToOncoTree(undefined)).toEqual({ confidence: 'none' })
   })
 
-  it('resolves to a catalog entry and tells whether it needs confirmation', () => {
+  it('resolves to a catalog entry and tells whether the code was ambiguous', () => {
     expect(resolveTumorType(code('C34.1', '8140/3'), ONCOTREE)).toMatchObject({
       tumorType: { code: 'LUAD' },
-      needsConfirmation: false,
+      ambiguous: false,
     })
     const nos = resolveTumorType(code('C34.9', '8046/3'), ONCOTREE)
     expect(nos.tumorType?.code).toBe('NSCLC')
-    expect(nos.needsConfirmation).toBe(true)
+    expect(nos.ambiguous).toBe(true)
     expect(nos.reason).toMatch(/NOS/)
   })
 })

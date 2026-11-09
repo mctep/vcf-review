@@ -4,7 +4,7 @@ export type CaseStatus = 'processing' | 'ready' | 'review' | 'signed' | 'failed'
 
 /**
  * Status shown to people. Same as `CaseStatus`, plus `needsInput`: processing is finished up to interpretation,
- * which waits for missing or unconfirmed tumor type / tumor content. Derived by `displayStatus()`.
+ * which waits for missing tumor type / tumor content. Derived by `displayStatus()`.
  */
 export type DisplayStatus = CaseStatus | 'needsInput'
 
@@ -88,8 +88,6 @@ export interface CaseMetadata {
   diagnosis?: string
   diagnosisCode?: DiagnosisCode
   clinicalNotes?: string
-  /** Values that were pre-filled automatically but must be confirmed by a person before interpretation. */
-  unconfirmed?: InterpretationField[]
   /** Where each field value came from. */
   origin: Partial<Record<keyof Omit<CaseMetadata, 'origin'>, MetadataOrigin>>
 }
