@@ -233,6 +233,12 @@ export interface InterpretationContext {
   tumorContent?: number
 }
 
+/** Result of the last LIMS lookup for the case's sample. */
+export interface LimsSync {
+  status: 'found' | 'not-found'
+  at: string
+}
+
 export interface Case {
   id: string
   createdAt: string
@@ -253,6 +259,8 @@ export interface Case {
    * reviewer decides whether to re-run it (see `staleInputs`).
    */
   interpretationContext?: InterpretationContext
+  /** Last LIMS lookup; absent until the first one finishes. */
+  lims?: LimsSync
   audit: AuditEvent[]
   chat: ChatMessage[]
 }

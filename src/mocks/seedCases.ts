@@ -70,6 +70,7 @@ export function seedCases(): Case[] {
     selected: reportableIds('nsclc'),
     edits: {},
     report: { status: 'draft', version: '0.1', overrides: {} },
+    lims: { status: 'found', at: iso(94) },
     audit: [
       auditEvent(
         'case.created',

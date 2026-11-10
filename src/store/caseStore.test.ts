@@ -22,6 +22,7 @@ describe('caseStore background processing', () => {
     expect(get(id).variants.length).toBeGreaterThan(0)
     expect(get(id).processing.steps.interpretation).toBe('waiting')
     expect(get(id).audit.some((e) => e.message.startsWith('No LIMS order found'))).toBe(true)
+    expect(get(id).lims?.status).toBe('not-found')
 
     useCaseStore.getState().updateMetadata(id, { tumorType: tumor('LUAD') })
     expect(get(id).processing.steps.interpretation).toBe('waiting')
@@ -42,6 +43,7 @@ describe('caseStore background processing', () => {
     expect(c.metadata.tumorType?.code).toBe('LUAD')
     expect(c.metadata.origin.tumorType).toBe('lims')
     expect(c.metadata.tumorContent).toBe(60)
+    expect(c.lims?.status).toBe('found')
     expect(c.processing.steps.interpretation).toBe('done')
     expect(c.audit.some((e) => e.message.includes('→ Lung Adenocarcinoma (LUAD)'))).toBe(true)
   })

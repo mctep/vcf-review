@@ -1,7 +1,6 @@
 import {
   Badge,
   Box,
-  Button,
   Field,
   Grid,
   HStack,
@@ -13,13 +12,12 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { DatabaseZap, FileCode2 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { FileCode2 } from 'lucide-react'
+import { useEffect, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { sourceLocation } from '../../domain/case/factory'
 import { missingRequiredFields, type RequiredField } from '../../domain/metadata/requiredFields'
 import { mapDiagnosisToOncoTree } from '../../domain/metadata/tumorTypeMapping'
-import { toaster } from '../../components/ui/toaster'
 import { formatBytes } from '../../domain/upload/fileRules'
 import type { CaseMetadata, MetadataOrigin } from '../../domain/types'
 import { useCaseStore } from '../../store/caseStore'
@@ -29,6 +27,7 @@ import { useCurrentCase } from '../case/CaseLayout'
 import { FOCUS_PARAM, focusRequiredField, REQUIRED_FIELDS_ID, requiredFieldAttr } from '../case/anchors'
 import { ProcessingBanner } from '../case/ProcessingBanner'
 import { StaleInterpretationCallout } from '../case/StaleInterpretationCallout'
+import { LimsSyncBar } from './LimsSyncBar'
 import { OncoTreeCombobox } from './OncoTreeCombobox'
 
 type Key = keyof Omit<CaseMetadata, 'origin'>
@@ -86,8 +85,6 @@ function Section({
 export function CaseDetailsPage() {
   const c = useCurrentCase()
   const update = useCaseStore((s) => s.updateMetadata)
-  const fetchFromLims = useCaseStore((s) => s.fetchLims)
-  const [fetching, setFetching] = useState(false)
   const [params, setParams] = useSearchParams()
   const focusField = params.get(FOCUS_PARAM)
 
@@ -127,27 +124,12 @@ export function CaseDetailsPage() {
     </Field.Root>
   )
 
-  const fetchLims = async () => {
-    setFetching(true)
-    try {
-      const result = await fetchFromLims(c.id)
-      if (result === 'not-found')
-        toaster.create({
-          type: 'warning',
-          title: `No LIMS order found for ${m.sampleId}`,
-          description: 'Fill in the fields manually.',
-          duration: 5000,
-        })
-    } finally {
-      setFetching(false)
-    }
-  }
-
   return (
     <>
       <CaseHeader c={c} />
       <ProcessingBanner c={c} />
       <StaleInterpretationCallout c={c} />
+      <LimsSyncBar c={c} />
 
       <Grid templateColumns={{ base: '1fr', xl: '2fr 1fr' }} gap="6" alignItems="start">
         <Stack gap="6">
@@ -224,19 +206,7 @@ export function CaseDetailsPage() {
 
           <Section
             title="Test order"
-            hint="Fetched from the LIMS automatically when the case is created (HL7 ORM or FHIR ServiceRequest in a real deployment). Values you type are never overwritten."
-            action={
-              <Button
-                size="sm"
-                variant="outline"
-                colorPalette="brand"
-                loading={fetching}
-                disabled={locked}
-                onClick={fetchLims}
-              >
-                <DatabaseZap /> Fetch from LIMS
-              </Button>
-            }
+            hint="Patient, specimen and test details from the LIMS order. Values you type are never overwritten."
           >
             <SimpleGrid columns={{ base: 1, md: 2 }} gap="4">
               {text('patientId', 'Patient ID (pseudonymised)')}

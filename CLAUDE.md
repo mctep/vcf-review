@@ -78,7 +78,9 @@ Key rules:
 - Show case status with `displayStatus(c)` (`domain/case/interpretation.ts`), not `c.status`: a processing case
   whose interpretation waits for metadata is shown as `needsInput` (orange pill, dot on the Details nav item,
   a toast when it happens in the background).
-- LIMS never overwrites values with `origin: 'user'`.
+- LIMS never overwrites values with `origin: 'user'`. The result of the last lookup is `Case.lims`; the Details page
+  shows it with a page-level `<LimsSyncBar>` (status + Refresh), not inside a single card, because the order fills
+  fields in several sections (including the required tumor type and tumor content).
 - What is visible when is decided by `domain/case/interpretation.ts`: annotated variants (gene, HGVS, VAF,
   consequence) and report selection are available as soon as filtering & ranking are done (`isAnnotated`);
   AI-derived content (classifications, descriptions, flags, analysis details) and the report stay locked until

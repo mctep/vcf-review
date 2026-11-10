@@ -311,6 +311,8 @@ export const useCaseStore = create<CaseStore>((set, get) => {
       const c = getCase(caseId)
       if (!c) return 'not-found'
       const order = await services.lims.fetchOrder(c.metadata.sampleId)
+      const at = new Date().toISOString()
+      patchCase(caseId, (x) => ({ ...x, lims: { status: order ? 'found' : 'not-found', at } }))
       if (!order) {
         log(caseId, auditEvent('metadata.updated', `No LIMS order found for ${c.metadata.sampleId}`, 'LIMS'))
         return 'not-found'
