@@ -3,6 +3,8 @@
 A clickable prototype of a VCF interpretation and clinical reporting app for somatic oncology NGS.
 Built with React, TypeScript and Chakra UI v3. **All data is synthetic — not for clinical use.**
 
+**Live demo:** https://mctep.github.io/vcf-review/
+
 ## What it shows
 
 1. **New case.** Pick a VCF from a local file or from a pre-configured NFS mount / S3 bucket through a file browser.
