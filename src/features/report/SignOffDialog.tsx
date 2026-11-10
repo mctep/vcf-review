@@ -1,6 +1,7 @@
-import { Button, Checkbox, Dialog, Portal, Stack, Text } from '@chakra-ui/react'
+import { Box, Button, Checkbox, Dialog, Portal, Stack, Text } from '@chakra-ui/react'
 import { PenLine } from 'lucide-react'
 import { useState } from 'react'
+import { Tooltip } from '../../components/ui/tooltip'
 import { CURRENT_USER } from '../../domain/case/factory'
 import type { CaseMetadata, MetadataOrigin } from '../../domain/types'
 
@@ -31,11 +32,22 @@ export function SignOffDialog({
       open={open}
       onOpenChange={(e) => (setOpen(e.open), setConfirmed(false), setContextConfirmed(false))}
     >
-      <Dialog.Trigger asChild>
-        <Button colorPalette="brand" disabled={disabled} title={reason}>
-          <PenLine /> Sign & release
-        </Button>
-      </Dialog.Trigger>
+      {disabled ? (
+        // A disabled button gets no pointer events, so the tooltip sits on a focusable wrapper.
+        <Tooltip content={reason} showArrow openDelay={100}>
+          <Box as="span" display="inline-flex" tabIndex={0} borderRadius="l2" cursor="not-allowed">
+            <Button colorPalette="brand" disabled pointerEvents="none">
+              <PenLine /> Sign & release
+            </Button>
+          </Box>
+        </Tooltip>
+      ) : (
+        <Dialog.Trigger asChild>
+          <Button colorPalette="brand">
+            <PenLine /> Sign & release
+          </Button>
+        </Dialog.Trigger>
+      )}
       <Portal>
         <Dialog.Backdrop />
         <Dialog.Positioner>

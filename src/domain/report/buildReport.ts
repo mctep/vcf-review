@@ -179,8 +179,9 @@ export function reportHeader(c: Case): ReportHeaderBlock[] {
 /** Why the report cannot be signed yet, or `undefined`. Interpretation state is checked separately. */
 export function signOffBlockReason(c: Case): string | undefined {
   if (!c.metadata.patientId)
-    return 'Enter the patient ID on the Details tab — a report must identify the patient'
-  if (c.selected.length === 0) return 'Select at least one variant to include'
+    return 'Fill in the patient ID on the Details tab — a signed report must identify the patient'
+  if (c.selected.length === 0)
+    return 'Select at least one variant on the Variants tab to include in the report'
   return undefined
 }
 
