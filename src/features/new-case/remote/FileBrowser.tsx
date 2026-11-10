@@ -157,10 +157,12 @@ export function FileBrowser({ value, onChange }: Props) {
           gap="2"
           p="2"
           fontSize="xs"
-          color="fg.subtle"
+          color="fg.muted"
           align="flex-start"
         >
-          <ShieldCheck size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+          <Box as="span" color="green.fg" flexShrink={0} mt="0.5">
+            <ShieldCheck size={14} />
+          </Box>
           <Text>
             Connections are configured by your administrator ({conn?.access ?? 'read-only'}). No credentials
             are entered here.
@@ -220,8 +222,8 @@ export function FileBrowser({ value, onChange }: Props) {
             color="fg.subtle"
             fontSize="xs"
             fontWeight="600"
-            _hover={{ bg: 'transparent' }}
             bg="bg.subtle"
+            _hover={{ bg: 'bg.subtle' }}
           >
             <span>Name</span>
             <Text textAlign="end">Size</Text>
@@ -230,7 +232,7 @@ export function FileBrowser({ value, onChange }: Props) {
 
           {listing.state === 'loading' &&
             Array.from({ length: 4 }, (_, i) => (
-              <FB.Row key={i} aria-hidden>
+              <FB.Row key={i} aria-hidden cursor="default" _hover={{ bg: 'transparent' }}>
                 <Skeleton h="4" w="60%" />
                 <Skeleton h="4" />
                 <Skeleton h="4" />

@@ -34,7 +34,7 @@ export const fileBrowserRecipe = defineSlotRecipe({
       textAlign: 'start',
       minW: { base: '12rem', md: 'auto' },
       _hover: { bg: 'bg.muted' },
-      '&[aria-pressed=true]': { bg: 'bg.selected', color: 'brand.fg' },
+      '&[aria-pressed=true]': { bg: 'bg.selected', color: 'brand.fg', _hover: { bg: 'bg.selected' } },
     },
     main: { display: 'flex', flexDirection: 'column', minW: 0 },
     toolbar: {
@@ -62,7 +62,7 @@ export const fileBrowserRecipe = defineSlotRecipe({
       userSelect: 'none',
       _hover: { bg: 'bg.subtle' },
       _focusVisible: { outline: '2px solid', outlineColor: 'brand.focusRing', outlineOffset: '-2px' },
-      '&[aria-selected=true]': { bg: 'bg.selected' },
+      '&[aria-selected=true]': { bg: 'bg.selected', _hover: { bg: 'bg.selected' } },
       '&[aria-disabled=true]': { color: 'fg.subtle', cursor: 'not-allowed', _hover: { bg: 'transparent' } },
     },
     selectedBar: {
